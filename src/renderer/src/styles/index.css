@@ -410,6 +410,22 @@ textarea:focus-visible,
     animation: neu-shine 600ms var(--ease-out) forwards;
   }
 }
+/* Danger buttons: red at rest, same sweep in red tones on hover. */
+@utility btn-shine-danger {
+  color: var(--danger);
+  & .btn-label {
+    --shine-mid: color-mix(in srgb, var(--danger), #ff5a4a 45%);
+    --shine-band: color-mix(in srgb, var(--danger), white 55%);
+  }
+  &:hover:not(:disabled) .btn-label {
+    background-image: linear-gradient(100deg, var(--danger) 0%, var(--shine-mid) 20%, var(--danger) 38%, var(--shine-band) 50%, var(--danger) 62%, var(--shine-mid) 80%, var(--danger) 100%);
+    background-size: 250% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: neu-shine 600ms var(--ease-out) forwards;
+  }
+}
 @keyframes neu-shine {
   from { background-position: 100% 0; }
   to { background-position: 0% 0; }
