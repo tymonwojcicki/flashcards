@@ -72,8 +72,8 @@ export function CommandPalette(): React.JSX.Element {
     const sc = (id: ShortcutId): string => SHORTCUTS[id].keys
     const statics: Command[] = [
       { id: 'go-decks', label: 'Go to Decks', icon: <Layers size={17} />, hotkey: sc('nav.decks'), run: () => navigate({ name: 'decks' }) },
-      { id: 'go-add', label: 'Add cards', icon: <PlusCircle size={17} />, hotkey: sc('nav.add'), run: () => navigate({ name: 'add' }) },
       { id: 'go-browse', label: 'Browse cards', icon: <Search size={17} />, hotkey: sc('nav.browse'), run: () => navigate({ name: 'browse' }) },
+      { id: 'go-add', label: 'Add cards', icon: <PlusCircle size={17} />, hotkey: sc('nav.add'), run: () => navigate({ name: 'add' }) },
       { id: 'go-stats', label: 'Statistics', icon: <BarChart3 size={17} />, hotkey: sc('nav.stats'), run: () => navigate({ name: 'stats' }) },
       { id: 'go-settings', label: 'Settings', icon: <Settings size={17} />, hotkey: sc('nav.settings'), run: () => navigate({ name: 'settings' }) },
       { id: 'import', label: 'Import CSV / deck file', icon: <Upload size={17} />, run: () => navigate({ name: 'import' }) },

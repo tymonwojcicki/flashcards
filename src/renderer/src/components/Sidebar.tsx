@@ -28,8 +28,8 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { route: { name: 'decks' }, label: 'Decks', icon: <Layers size={19} />, shortcut: 'nav.decks' },
-  { route: { name: 'add' }, label: 'Add cards', icon: <PlusCircle size={19} />, shortcut: 'nav.add' },
   { route: { name: 'browse' }, label: 'Browse', icon: <Search size={19} />, shortcut: 'nav.browse' },
+  { route: { name: 'add' }, label: 'Add cards', icon: <PlusCircle size={19} />, shortcut: 'nav.add' },
   { route: { name: 'stats' }, label: 'Stats', icon: <BarChart3 size={19} />, shortcut: 'nav.stats' }
 ]
 
