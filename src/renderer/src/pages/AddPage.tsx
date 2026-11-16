@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Check, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { Check, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { RichHtml } from '@renderer/lib/html'
 import type { Editor } from '@tiptap/react'
 import type { DeckNode, Id } from '@shared/types'
 import { Button, IconButton, Kbd, Switch, toast } from '@renderer/components/ui'
@@ -214,6 +215,25 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
     }
   }
 
+  // Preview drawer for a row of the session table. The last entry is kept so the panel keeps its
+  // content while it slides out.
+  const [previewId, setPreviewId] = useState<Id | null>(null)
+  const lastPreview = useRef<SessionEntry | null>(null)
+  const previewEntry = session.find((e) => e.noteId === previewId) ?? null
+  if (previewEntry) lastPreview.current = previewEntry
+  const shown = previewEntry ?? lastPreview.current
+  useEffect(() => {
+    if (!previewEntry) return
+    const onKey = (ev: KeyboardEvent): void => {
+      if (ev.key !== 'Escape' || ev.defaultPrevented) return
+      const t = ev.target as HTMLElement | null
+      if (t?.closest('input, textarea, [contenteditable="true"], [role="dialog"]')) return
+      setPreviewId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [previewEntry])
+
   const saveRef = useRef(save)
   saveRef.current = save
   useShortcut('creator.save', () => void saveRef.current(), { allowInInputs: true })
@@ -333,13 +353,14 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
                 return (
                   <div
                     key={e.noteId}
+                    onClick={() => setPreviewId((id) => (id === e.noteId ? null : e.noteId))}
                     onDoubleClick={() => startEdit(e)}
                     className={clsx(
-                      'group grid items-center gap-3 px-4 py-2.5 text-sm',
+                      'group grid cursor-default items-center gap-3 px-4 py-2.5 text-sm select-none',
                       SESSION_COLS,
                       i < session.length - 1 && 'border-b border-text/[0.06]',
                       e.noteId === lastAddedId && 'anim-item-in',
-                      editing?.noteId === e.noteId
+                      editing?.noteId === e.noteId || previewId === e.noteId
                         ? 'bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]'
                         : 'hover:bg-accent/[0.05]'
                     )}
@@ -358,7 +379,11 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
                     <span className="truncate text-xs text-muted" title={e.deckLabel}>
                       {e.deckLabel}
                     </span>
-                    <span className="flex justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+                    <span
+                      className="flex justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100"
+                      onClick={(ev) => ev.stopPropagation()}
+                      onDoubleClick={(ev) => ev.stopPropagation()}
+                    >
                       <IconButton size="sm" variant="ghost" label="Edit" icon={<Pencil size={14} />} onClick={() => startEdit(e)} />
                       <IconButton size="sm" variant="ghost" label="Delete" icon={<Trash2 size={14} />} onClick={() => void removeEntry(e)} />
                     </span>
@@ -369,6 +394,74 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
           </div>
         </section>
       </div>
+
+      <aside
+        aria-label="Card preview"
+        aria-hidden={!previewEntry}
+        className={clsx(
+          'neu-raised fixed top-4 right-4 bottom-4 z-40 flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-[24px] bg-bg p-5',
+          'transition-[translate,opacity] ease-[var(--ease-out)]',
+          previewEntry
+            ? 'translate-x-0 opacity-100 duration-250'
+            : 'pointer-events-none invisible translate-x-[calc(100%+2rem)] opacity-0 duration-200'
+        )}
+      >
+        {shown && (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text">Card</h2>
+              <IconButton size="sm" variant="ghost" label="Close preview" icon={<X size={16} />} onClick={() => setPreviewId(null)} />
+            </div>
+            <div>
+              <div className="mb-1 text-xs font-semibold tracking-wide text-muted uppercase">Front</div>
+              <RichHtml html={shown.front} className="text-base text-text" />
+            </div>
+            <div className="neu-inset h-px rounded-full" />
+            <div>
+              <div className="mb-1 text-xs font-semibold tracking-wide text-muted uppercase">Back</div>
+              {hasContent(shown.back) ? (
+                <RichHtml html={shown.back} className="text-base text-text" />
+              ) : (
+                <span className="text-sm text-muted">(empty)</span>
+              )}
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+              <dt className="text-muted">Deck</dt>
+              <dd className="text-text">{shown.deckLabel}</dd>
+              <dt className="text-muted">Reverse card</dt>
+              <dd className="text-text">{shown.reverse ? 'Yes' : 'No'}</dd>
+              {shown.tags.length > 0 && (
+                <>
+                  <dt className="text-muted">Tags</dt>
+                  <dd className="text-text">{shown.tags.join(', ')}</dd>
+                </>
+              )}
+            </dl>
+            <div className="mt-auto flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                icon={<Pencil size={14} />}
+                onClick={() => {
+                  startEdit(shown)
+                  setPreviewId(null)
+                }}
+              >
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                icon={<Trash2 size={14} />}
+                onClick={() => {
+                  setPreviewId(null)
+                  void removeEntry(shown)
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </>
+        )}
+      </aside>
     </div>
   )
 }
