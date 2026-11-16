@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { isForeignLock } from './backupCore'
+import { isForeignLock, isTakenOver } from './backupCore'
 
 export const LOCK_FILE = 'app.lock'
 const HEARTBEAT_MS = 60_000
@@ -35,7 +35,11 @@ export function foreignLock(dir: string, now = Date.now()): LockData | null {
 export class Lock {
   private timer: NodeJS.Timeout | null = null
   private since = Date.now()
-  constructor(private dir: string) {}
+  /** `onLost` runs once if another device takes the lock over; the heartbeat has stopped by then. */
+  constructor(
+    private dir: string,
+    private onLost?: (device: string) => void
+  ) {}
 
   acquire(): void {
     this.since = Date.now()
@@ -44,6 +48,13 @@ export class Lock {
   }
 
   private write(): void {
+    const current = readLock(this.dir)
+    if (current && isTakenOver(current, device(), this.since)) {
+      if (this.timer) clearInterval(this.timer)
+      this.timer = null
+      this.onLost?.(current.device)
+      return
+    }
     const data: LockData = { device: device(), pid: process.pid, heartbeat: Date.now(), since: this.since }
     try {
       fs.writeFileSync(path.join(this.dir, LOCK_FILE), JSON.stringify(data))

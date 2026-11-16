@@ -59,7 +59,12 @@ class AppState {
 
   private takeLock(): void {
     this.lock?.release()
-    this.lock = new Lock(this.col.dir)
+    this.lock = new Lock(this.col.dir, (device) => {
+      // Another PC pressed "Open anyway": stop writing so we don't overwrite its changes.
+      this.col.readOnly = true
+      this.lockStatus = { kind: 'readonly', device }
+      this.emit('lock-lost')
+    })
     this.lock.acquire()
     this.col.readOnly = false
     this.lockStatus = { kind: 'ok' }

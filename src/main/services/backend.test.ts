@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Collection } from '../db/collection'
 import * as decks from './decks'
 import * as notes from './notes'
@@ -239,6 +239,47 @@ describe('import / export', () => {
 })
 
 describe('lock & backups', () => {
+  it('stops the heartbeat and reports when another device takes the lock over', () => {
+    vi.useFakeTimers()
+    try {
+      const dir = tmpDir()
+      const lost: string[] = []
+      const l = new Lock(dir, (d) => lost.push(d))
+      l.acquire()
+      vi.advanceTimersByTime(60_000) // own heartbeat: nothing happens
+      expect(lost).toEqual([])
+      const theirs = JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() + 1 })
+      fs.writeFileSync(path.join(dir, LOCK_FILE), theirs)
+      vi.advanceTimersByTime(3 * 60_000)
+      expect(lost).toEqual(['OTHER-PC']) // reported once, then stopped
+      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs) // never overwritten
+      l.release()
+      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps writing over an older stale lock from another device', () => {
+    vi.useFakeTimers()
+    try {
+      const dir = tmpDir()
+      const lost: string[] = []
+      const l = new Lock(dir, (d) => lost.push(d))
+      l.acquire()
+      fs.writeFileSync(
+        path.join(dir, LOCK_FILE),
+        JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: 0, since: 0 })
+      )
+      vi.advanceTimersByTime(60_000)
+      expect(lost).toEqual([])
+      expect(foreignLock(dir)).toBeNull() // our heartbeat is back in the file
+      l.release()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('ignores own lock and stale locks', () => {
     const dir = tmpDir()
     const l = new Lock(dir)

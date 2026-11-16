@@ -9,7 +9,7 @@ import * as io from '../main/services/importExport'
 import * as trash from '../main/services/trash'
 import { autoBackupDue, getAutoBackup, onOpen, setAutoBackup } from '../main/services/startup'
 import { MEDIA_DIR, base64ToBytes, mediaNameFromUrl, saveMedia, type MediaPort } from '../main/services/mediaCore'
-import { BACKUP_DIR, backupsToDelete, isConflictName, isForeignLock, safeFileName, stamp } from '../main/services/backupCore'
+import { BACKUP_DIR, backupsToDelete, isConflictName, isForeignLock, isTakenOver, safeFileName, stamp } from '../main/services/backupCore'
 import type { Api, MainEvent, RendererApi } from '../shared/api'
 import { API_METHODS } from '../shared/api'
 import { DEFAULT_PREFS, type LockStatus, type Prefs, type StartupState } from '../shared/types'
@@ -243,16 +243,19 @@ export class WebBackend {
   }
 
   // ----- lock -----
-  private async foreignLock(): Promise<{ device: string; since: number } | null> {
+  private async readLock(): Promise<{ device: string; heartbeat: number; since: number } | null> {
     if (this.store.kind !== 'folder') return null
     try {
       const raw = await this.store.read(LOCK_FILE)
-      if (!raw) return null
-      const l = JSON.parse(new TextDecoder().decode(raw)) as { device: string; heartbeat: number; since: number }
-      return isForeignLock(l, deviceName()) ? l : null
+      return raw ? JSON.parse(new TextDecoder().decode(raw)) : null
     } catch {
       return null
     }
+  }
+
+  private async foreignLock(): Promise<{ device: string; since: number } | null> {
+    const l = await this.readLock()
+    return l && isForeignLock(l, deviceName()) ? l : null
   }
 
   private async takeLock(): Promise<void> {
@@ -260,10 +263,21 @@ export class WebBackend {
     this.lockStatus = { kind: 'ok' }
     if (this.store.kind !== 'folder') return
     const since = Date.now()
-    const write = () =>
-      this.store
+    const write = async () => {
+      const current = await this.readLock()
+      if (current && isTakenOver(current, deviceName(), since)) {
+        // Another device pressed "Open anyway": stop writing so we don't overwrite its changes.
+        if (this.heartbeat) clearInterval(this.heartbeat)
+        this.heartbeat = null
+        this.col.readOnly = true
+        this.lockStatus = { kind: 'readonly', device: current.device }
+        this.emit('lock-lost')
+        return
+      }
+      await this.store
         .write(LOCK_FILE, JSON.stringify({ device: deviceName(), pid: 0, heartbeat: Date.now(), since }))
         .catch(() => {})
+    }
     await write()
     this.heartbeat = setInterval(write, 60_000)
   }

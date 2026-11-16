@@ -119,6 +119,12 @@ export const useApp = create<AppState>((set, get) => ({
         void get().refreshDecks()
         toast('Synced changes loaded', { kind: 'info' })
       })
+      window.api.on('lock-lost', async () => {
+        const startup = await window.api.getStartupState()
+        set({ startup })
+        const device = startup.lock.kind === 'readonly' ? startup.lock.device : 'Another device'
+        toast(`${device} opened this collection, so it's read-only here now.`, { kind: 'error' })
+      })
     })()
     return initPromise
   },

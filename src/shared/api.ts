@@ -146,4 +146,4 @@ export type RendererApi = {
 }
 
 /** Events pushed from main -> renderer. */
-export type MainEvent = 'collection-reloaded' | 'collection-changed'
+export type MainEvent = 'collection-reloaded' | 'collection-changed' | 'lock-lost'

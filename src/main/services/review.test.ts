@@ -5,7 +5,7 @@ import { Collection, loadSqlJs } from '../db/collection'
 import * as decks from './decks'
 import * as notes from './notes'
 import { createSampleDeck } from './startup'
-import { backupsToDelete, isConflictName, isForeignLock, safeFileName } from './backupCore'
+import { backupsToDelete, isConflictName, isForeignLock, isTakenOver, safeFileName } from './backupCore'
 
 const WASM = path.resolve('node_modules/sql.js/dist/sql-wasm.wasm')
 let col: Collection
@@ -116,6 +116,13 @@ describe('data folder rules', () => {
     expect(isForeignLock(lock, 'A', 1_000_000 + 60_000)).toBe(true)
     expect(isForeignLock(lock, 'B', 1_000_000)).toBe(false)
     expect(isForeignLock(lock, 'A', 1_000_000 + 10 * 60_000)).toBe(false)
+    // Taken over: only when another device's lock started after mine.
+    const mine = 1_000_000
+    expect(isTakenOver({ device: 'A', since: mine + 5 }, 'A', mine)).toBe(false) // own lock
+    expect(isTakenOver({ device: 'B', since: mine - 10 * 60_000 }, 'A', mine)).toBe(false) // stale, older than mine
+    expect(isTakenOver({ device: 'B', since: mine + 1 }, 'A', mine)).toBe(true) // "Open anyway" after mine
+    expect(isTakenOver({ device: 'B', since: mine - 1 }, 'A', mine)).toBe(false) // foreign but older
+    expect(isTakenOver(null, 'A', mine)).toBe(false)
     expect(safeFileName('a/b:c')).toBe('a_b_c')
     expect(safeFileName('***')).toBe('_')
     expect(safeFileName('')).toBe('deck')

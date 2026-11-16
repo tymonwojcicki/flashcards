@@ -37,5 +37,9 @@ export const isConflictName = (name: string, dbFile: string): boolean => name !=
 export const isForeignLock = (lock: { device: string; heartbeat: number }, thisDevice: string, now = Date.now()): boolean =>
   lock.device !== thisDevice && now - lock.heartbeat <= STALE_MS
 
+/** Another device took the lock after we did (e.g. "Open anyway"), so we must stop writing. */
+export const isTakenOver = (lock: { device: string; since: number } | null, thisDevice: string, mySince: number): boolean =>
+  !!lock && lock.device !== thisDevice && lock.since > mySince
+
 /** Make a string safe to use as a file name. */
 export const safeFileName = (s: string): string => s.replace(/[<>:"/\|?*]+/g, '_').slice(0, 80) || 'deck'
