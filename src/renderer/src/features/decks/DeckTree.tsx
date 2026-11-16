@@ -191,7 +191,6 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
 
   const manageItems = (d: DeckNode): MenuEntry[] => [
     { label: 'Browse cards', icon: <Search size={16} />, onSelect: () => navigate({ name: 'browse', deckId: d.id }) },
-    { label: 'Add cards', icon: <Plus size={16} />, onSelect: () => navigate({ name: 'add', deckId: d.id }) },
     { label: 'Add sub-deck', icon: <FolderPlus size={16} />, onSelect: () => onAddSub(d) },
     { type: 'separator' },
     { label: 'Rename', icon: <Pencil size={16} />, hotkey: 'F2', onSelect: () => startRename(d) },
