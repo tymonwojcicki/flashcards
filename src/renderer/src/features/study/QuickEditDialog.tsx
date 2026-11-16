@@ -43,7 +43,7 @@ export function QuickEditDialog({ open, note, onClose, onSaved }: QuickEditDialo
       open={open}
       onOpenChange={(o) => !o && onClose()}
       title="Edit card"
-      description="Content is HTML. Math can be written as $x^2$."
+      description="Content is HTML. Math: write LaTeX between $ signs."
       initialFocus={frontRef}
       className="w-[min(40rem,calc(100vw-2rem))]"
       footer={

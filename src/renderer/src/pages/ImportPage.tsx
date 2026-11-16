@@ -71,8 +71,8 @@ function HelpCard(): React.JSX.Element {
           Use <code className="rounded bg-bg px-1">A::B::C</code> in the deck column to create sub-decks.
         </li>
         <li>
-          Math works with <code className="rounded bg-bg px-1">$x^2$</code> and{' '}
-          <code className="rounded bg-bg px-1">$$\int f$$</code>.
+          Math: write LaTeX between <code className="rounded bg-bg px-1">$</code> signs, or{' '}
+          <code className="rounded bg-bg px-1">$$</code> for a centered formula.
         </li>
         <li>
           Images: <code className="rounded bg-bg px-1">{'<img src="images/x.png">'}</code>, relative to the file.

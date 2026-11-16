@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Cloud, DatabaseBackup, FolderOpen, FolderSync } from 'lucide-react'
+import { AlertTriangle, Cloud, DatabaseBackup, FolderOpen, FolderSync } from 'lucide-react'
 import { Button, Panel, Well, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 
 export function DataTab(): React.JSX.Element {
   const startup = useApp((s) => s.startup)
   const [busy, setBusy] = useState(false)
+  const noFolders = !('showDirectoryPicker' in window)
 
   const change = async (): Promise<void> => {
     try {
@@ -36,8 +37,17 @@ export function DataTab(): React.JSX.Element {
       <Panel className="flex flex-col gap-4">
         <h3 className="text-base font-semibold">Data folder</h3>
         <Well className="break-all font-mono text-sm">{startup?.dataDir ?? '…'}</Well>
+        {noFolders && (
+          <div role="alert" className="neu-inset flex gap-3 rounded-2xl border border-danger/40 p-4 text-sm">
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-danger" />
+            <p>
+              This browser can't open folders, so your data is stored in this browser only. To sync with a folder, use
+              Chrome or Edge on a computer.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
-          <Button icon={<FolderSync size={16} />} onClick={() => void change()}>
+          <Button icon={<FolderSync size={16} />} disabled={noFolders} onClick={() => void change()}>
             Change folder…
           </Button>
           <Button icon={<FolderOpen size={16} />} onClick={() => void window.api.openDataDir()}>

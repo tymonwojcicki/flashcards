@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   Button,
   Dialog,
@@ -59,6 +59,33 @@ function StepsField({
         </p>
       ) : (
         <p className="text-xs text-muted">{steps.length === 0 ? 'No steps' : steps.join(' → ')}</p>
+      )}
+    </div>
+  )
+}
+
+function HowItWorks(): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={clsx('rounded-[24px] transition-all duration-150', open ? 'neu-inset' : 'neu-raised')}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 rounded-[24px] px-5 py-3.5 text-left text-base font-semibold"
+      >
+        <ChevronRight size={18} className={clsx('text-muted transition-transform duration-150', open && 'rotate-90')} />
+        How scheduling works
+      </button>
+      {open && (
+        <p className="px-5 pb-5 pl-12 text-sm leading-relaxed text-muted">
+          Each card has a memory strength. When you rate a card, the scheduler (FSRS) estimates how long you will remember
+          it and sets the next review for the day your chance of remembering drops to your desired retention. Good and Easy
+          push the card further out; Hard a little; Again brings it back soon. New cards first go through short learning
+          steps on the same day before they get intervals in days. If you forget a card you already knew, it goes through
+          relearning steps and then back to normal reviews. To see more cards, raise the desired retention or the new cards
+          per day. To see fewer, lower them.
+        </p>
       )}
     </div>
   )
@@ -243,6 +270,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
   return (
     <div className="flex flex-col gap-6">
+      <HowItWorks />
       <Panel className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Preset" className="w-64">
@@ -287,7 +315,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           <div className="divide-y divide-muted/15">
             <SettingRow
               title="Desired retention"
-              desc="Higher retention increases the number of reviews. Default: 90%."
+              desc="The chance of remembering a card when it comes up for review. Higher means more reviews. Default: 90%."
               stacked
             >
               <div className="flex items-center gap-4">
@@ -310,14 +338,14 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Learning steps"
-              desc="Delays before a new card graduates to normal reviews. Example: 1m 10m."
+              desc="Short waits for new cards, practised on the same day. With “1m 10m”, a new card comes back after 1 minute, then after 10 minutes. Press Good to move to the next step; after the last step the card is scheduled days ahead. Again restarts the steps. Use m for minutes, h for hours, d for days."
             >
               <StepsField label="Learning steps" value={draft.learningSteps} onCommit={(s) => change({ learningSteps: s })} />
             </SettingRow>
 
             <SettingRow
               title="Relearning steps"
-              desc="Delays after a review card is answered Again. Example: 10m."
+              desc="The same, for cards you forgot. With “10m”, a card you press Again on during a review comes back after 10 minutes before returning to longer intervals. Leave empty to skip relearning."
             >
               <StepsField
                 label="Relearning steps"
@@ -359,7 +387,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Fuzz"
-              desc="Adds small random variation to intervals."
+              desc="Adds a small random shift to longer intervals. Without it, cards you added on the same day keep coming back on the same day, in large batches. Keep this on."
             >
               <Switch aria-label="Fuzz" checked={draft.enableFuzz} onCheckedChange={(v) => change({ enableFuzz: v })} />
             </SettingRow>
@@ -393,7 +421,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       <Panel className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Collection</h3>
         <div className="divide-y divide-muted/15">
-          <SettingRow title="Next day starts at" desc="Reviews done before this hour still count as the previous day.">
+          <SettingRow title="Next day starts at" desc="The hour a new study day begins, in your computer's local time. The default is 4:00, so a session after midnight still counts toward the previous day.">
             <Select
               aria-label="Next day starts at"
               value={String(collection.dayStartHour)}
@@ -406,7 +434,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           </SettingRow>
           <SettingRow
             title="Learn ahead limit"
-            desc="Learning cards due within this time are shown early."
+            desc="When nothing else is left in a session, learning cards due within this many minutes are shown immediately instead of making you wait. Example: with 20 minutes, a card due in 8 minutes is shown now."
           >
             <NumberField
               aria-label="Learn ahead limit in minutes"

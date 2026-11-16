@@ -39,7 +39,7 @@ export interface DeckComboboxProps {
   onChange: (id: Id | null) => void
   /** Adds an "All decks" entry that selects null (for filters). */
   allowAll?: boolean
-  /** Adds a "+ New deck…" entry. */
+  /** Adds a "New deck…" entry. */
   allowNew?: boolean
   /** Called after the user picked something with the keyboard/mouse. */
   onDone?: () => void
@@ -95,7 +95,7 @@ export function DeckCombobox({
         out.push({ key: d.id, kind: 'deck', id: d.id, label, depth: d.depth })
     }
     if (allowNew)
-      out.push({ key: 'new', kind: 'new', label: q ? `Create deck "${query.trim()}"` : '+ New deck…' })
+      out.push({ key: 'new', kind: 'new', label: q ? `Create deck "${query.trim()}"` : 'New deck…' })
     return out
   }, [flat, query, allowAll, allowNew])
 

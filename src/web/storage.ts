@@ -201,14 +201,20 @@ export async function rememberFolder(h: DirHandle | null): Promise<void> {
   else await kvDel(HANDLE_KEY)
 }
 
+export const FOLDER_UNSUPPORTED_MESSAGE =
+  "This browser can't open folders. Use Chrome or Edge on a computer. " +
+  '(In Brave, enable brave://flags/#file-system-access-api and restart.)'
+
 export async function pickFolder(): Promise<DirHandle | null> {
+  if (!folderSupported()) throw new Error(FOLDER_UNSUPPORTED_MESSAGE)
   try {
-    const h = (await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({
+    return await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({
       id: 'flashcards-data',
       mode: 'readwrite'
-    })) as DirHandle
-    return h
-  } catch {
-    return null // cancelled
+    })
+  } catch (e) {
+    // Closing the picker is not an error; anything else is shown to the user.
+    if (e instanceof DOMException && e.name === 'AbortError') return null
+    throw e
   }
 }

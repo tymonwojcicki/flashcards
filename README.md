@@ -6,6 +6,8 @@ Spaced-repetition flashcards (FSRS) with nested decks, math and images.
 
 **Use it:** https://tymonwojcicki.github.io/flashcards/ — open in Chrome or Edge, click **Install** in the address bar.
 
+**Browser:** use Chrome or Edge on a computer. Firefox and Safari can't open folders, so syncing won't work there: your data stays inside that browser only.
+
 ## Features
 
 - Nested decks (`Economics::Micro::Elasticity`)

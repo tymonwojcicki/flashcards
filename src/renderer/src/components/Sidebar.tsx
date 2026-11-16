@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   BarChart3,
@@ -30,9 +30,15 @@ const NAV: NavItem[] = [
   { route: { name: 'decks' }, label: 'Decks', icon: <Layers size={19} />, shortcut: 'nav.decks' },
   { route: { name: 'add' }, label: 'Add cards', icon: <PlusCircle size={19} />, shortcut: 'nav.add' },
   { route: { name: 'browse' }, label: 'Browse', icon: <Search size={19} />, shortcut: 'nav.browse' },
-  { route: { name: 'stats' }, label: 'Stats', icon: <BarChart3 size={19} />, shortcut: 'nav.stats' },
-  { route: { name: 'settings' }, label: 'Settings', icon: <Settings size={19} />, shortcut: 'nav.settings' }
+  { route: { name: 'stats' }, label: 'Stats', icon: <BarChart3 size={19} />, shortcut: 'nav.stats' }
 ]
+
+const SETTINGS_ITEM: NavItem = {
+  route: { name: 'settings' },
+  label: 'Settings',
+  icon: <Settings size={19} />,
+  shortcut: 'nav.settings'
+}
 
 function NavButton({ item, collapsed, badge }: { item: NavItem; collapsed: boolean; badge?: number }): React.JSX.Element {
   const route = useApp((s) => s.route)
@@ -94,8 +100,22 @@ export function Sidebar(): React.JSX.Element {
   const toggleHints = useApp((s) => s.toggleHints)
   const toggleTheme = useApp((s) => s.toggleTheme)
   const setHelpOpen = useApp((s) => s.setHelpOpen)
-  const setPaletteOpen = useApp((s) => s.setPaletteOpen)
   const due = deckTree.reduce((sum, d) => sum + dueTotal(d), 0)
+
+  const [hover, setHover] = useState(false)
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(leaveTimer.current), [])
+  const floating = collapsed && hover
+  const compact = collapsed && !hover
+
+  const onEnter = (): void => {
+    clearTimeout(leaveTimer.current)
+    setHover(true)
+  }
+  const onLeave = (): void => {
+    clearTimeout(leaveTimer.current)
+    leaveTimer.current = setTimeout(() => setHover(false), 150)
+  }
 
   const toggleCollapsed = (): void => {
     setCollapsed((c) => {
@@ -106,86 +126,89 @@ export function Sidebar(): React.JSX.Element {
       }
       return !c
     })
+    setHover(false)
   }
 
   return (
-    <nav
-      aria-label="Main"
+    <div
       className={clsx(
-        'neu-raised m-4 mr-0 flex shrink-0 flex-col rounded-[24px] p-3 transition-[width] duration-150',
+        'relative m-4 mr-0 shrink-0 transition-[width] duration-150',
         collapsed ? 'w-[4.5rem]' : 'w-[17rem]'
       )}
+      onMouseEnter={collapsed ? onEnter : undefined}
+      onMouseLeave={collapsed ? onLeave : undefined}
     >
-      <div className={clsx('flex items-center gap-3 px-1.5 pt-1 pb-4', collapsed && 'justify-center px-0')}>
-        <div className="neu-raised-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-accent">
-          <Layers size={20} strokeWidth={2.4} />
-        </div>
-        {!collapsed && <span className="font-display flex-1 text-base font-bold tracking-tight">Flashcards</span>}
-        {!collapsed && (
-          <IconButton
-            label="Collapse sidebar"
-            icon={<PanelLeftClose size={16} />}
-            size="sm"
-            variant="ghost"
-            tooltipSide="right"
-            onClick={toggleCollapsed}
-          />
+      <nav
+        aria-label="Main"
+        data-floating={floating || undefined}
+        className={clsx(
+          'neu-raised absolute inset-y-0 left-0 flex flex-col rounded-[24px] p-3 transition-[width] duration-150',
+          compact ? 'w-[4.5rem]' : 'w-[17rem]',
+          floating && 'z-40'
         )}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        {NAV.map((item) => (
-          <NavButton key={item.route.name} item={item} collapsed={collapsed} badge={item.route.name === 'decks' ? due : undefined} />
-        ))}
-      </div>
-
-      <div className="flex-1" />
-
-      <div className="flex flex-col gap-2 pt-3">
-        {collapsed ? (
-          <>
-            <IconButton label="Expand sidebar" icon={<PanelLeftOpen size={17} />} size="sm" variant="ghost" tooltipSide="right" onClick={toggleCollapsed} />
-            <IconButton label="Command palette" icon={<Search size={17} />} size="sm" variant="ghost" tooltipSide="right" onClick={() => setPaletteOpen(true)} />
-            <IconButton label="Keyboard shortcuts" icon={<Keyboard size={17} />} size="sm" variant="ghost" tooltipSide="right" onClick={() => setHelpOpen(true)} />
+      >
+        <div className={clsx('flex items-center gap-3 px-1.5 pt-1 pb-4', compact && 'justify-center px-0')}>
+          <div className="neu-raised-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-accent">
+            <Layers size={20} strokeWidth={2.4} />
+          </div>
+          {!compact && <span className="font-display flex-1 text-base font-bold tracking-tight">Flashcards</span>}
+          {!compact && (
             <IconButton
-              label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              icon={theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+              label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              icon={collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
               size="sm"
               variant="ghost"
               tooltipSide="right"
-              onClick={toggleTheme}
+              onClick={toggleCollapsed}
             />
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="neu-inset flex h-10 items-center gap-2 rounded-2xl px-3 text-sm text-muted transition-colors duration-150 hover:text-text"
-            >
-              <Search size={15} />
-              <span className="flex-1 text-left">Search…</span>
-              <Kbd hotkey="Ctrl+K" />
-            </button>
-            <div className="flex items-center justify-between rounded-2xl px-2 py-1">
-              <label htmlFor="hint-switch" className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted">
-                <Keyboard size={15} />
-                Hotkey hints
-              </label>
-              <Switch id="hint-switch" checked={showHints} onCheckedChange={() => toggleHints()} />
-            </div>
-            <div className="flex items-center justify-between px-1">
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          {NAV.map((item) => (
+            <NavButton key={item.route.name} item={item} collapsed={compact} badge={item.route.name === 'decks' ? due : undefined} />
+          ))}
+        </div>
+
+        <div className="flex-1" />
+
+        <div className="flex flex-col gap-2 pt-3">
+          <NavButton item={SETTINGS_ITEM} collapsed={compact} />
+          {compact ? (
+            <>
+              <IconButton label="Keyboard shortcuts" icon={<Keyboard size={17} />} size="sm" variant="ghost" tooltipSide="right" onClick={() => setHelpOpen(true)} />
               <IconButton
                 label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                icon={theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
                 size="sm"
                 variant="ghost"
+                tooltipSide="right"
                 onClick={toggleTheme}
               />
-              <IconButton label="Keyboard shortcuts" icon={<Keyboard size={16} />} hotkey="?" size="sm" variant="ghost" onClick={() => setHelpOpen(true)} />
-            </div>
-          </>
-        )}
-      </div>
-    </nav>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between rounded-2xl px-2 py-1">
+                <label htmlFor="hint-switch" className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted">
+                  <Keyboard size={15} />
+                  Hotkey hints
+                </label>
+                <Switch id="hint-switch" checked={showHints} onCheckedChange={() => toggleHints()} />
+              </div>
+              <div className="flex items-center justify-between px-1">
+                <IconButton
+                  label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                  icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={toggleTheme}
+                />
+                <IconButton label="Keyboard shortcuts" icon={<Keyboard size={16} />} hotkey="?" size="sm" variant="ghost" onClick={() => setHelpOpen(true)} />
+              </div>
+            </>
+          )}
+        </div>
+      </nav>
+    </div>
   )
 }

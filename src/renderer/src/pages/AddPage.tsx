@@ -222,7 +222,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="sticky top-0 z-30 bg-bg/95 px-6 pt-5 pb-3 backdrop-blur">
+      <div className="relative z-30 px-6 pt-5 pb-3">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <DeckCombobox
@@ -236,9 +236,11 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
               label="Deck"
             />
           </div>
-          <span className="hidden items-center gap-1.5 text-xs text-muted sm:inline-flex">
-            Change deck <Kbd hotkey={deckKeys} />
-          </span>
+          {prefs.showHotkeyHints && (
+            <span className="hidden items-center gap-1.5 text-xs text-muted sm:inline-flex">
+              Change deck <Kbd hotkey={deckKeys} />
+            </span>
+          )}
         </div>
       </div>
 
@@ -311,14 +313,14 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
           </div>
         </div>
 
-        <Panel className="flex h-fit max-h-[calc(100vh-9rem)] min-w-0 flex-col gap-3 lg:sticky lg:top-20">
+        <Panel className="flex h-fit max-h-[calc(100vh-9rem)] min-w-0 flex-col gap-3 lg:sticky lg:top-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-text">Added this session</h2>
             {session.length > 0 && <span className="text-xs text-muted">{session.length}</span>}
           </div>
           {session.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">
-              Added cards are listed here. Ctrl+Enter adds a card. Tab switches sides. Use $x^2$ for math.
+              Added cards are listed here. Ctrl+Enter adds a card. Tab switches sides. Math: write LaTeX between $ signs.
             </p>
           ) : (
             <ul className="-mr-2 flex flex-col gap-2.5 overflow-y-auto pr-2">
