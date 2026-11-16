@@ -116,6 +116,18 @@
   --accent-contrast: #0e0c2a;
 }
 
+/* Light-mode switches: the generic neumorphic shadows are too faint at this size. */
+:root:not([data-theme="dark"]) .neu-switch {
+  box-shadow: inset 2px 2px 4px rgb(70 85 115 / 0.35), inset -2px -2px 4px #ffffff;
+}
+:root:not([data-theme="dark"]) .neu-switch[data-state="unchecked"] {
+  background-color: rgb(33 39 54 / 0.07);
+}
+:root:not([data-theme="dark"]) .neu-switch-thumb[data-state="unchecked"] {
+  background-color: #f8f9fc;
+  box-shadow: 0 1px 2px rgb(30 40 60 / 0.28), 0 2px 6px rgb(30 40 60 / 0.16);
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

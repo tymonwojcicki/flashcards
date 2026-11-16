@@ -122,12 +122,12 @@ export function Switch({ checked, onCheckedChange, id, disabled, className, ...r
       disabled={disabled}
       aria-label={rest['aria-label']}
       className={clsx(
-        'group neu-inset relative h-6 w-11 shrink-0 rounded-full transition-colors duration-150 disabled:opacity-50',
+        'group neu-inset neu-switch relative h-6 w-11 shrink-0 rounded-full transition-colors duration-150 disabled:opacity-50',
         'data-[state=checked]:bg-accent/25',
         className
       )}
     >
-      <RSwitch.Thumb className="neu-raised-sm block h-[1.15rem] w-[1.15rem] translate-x-[3px] rounded-full transition-all duration-200 ease-[var(--ease-out)] will-change-transform data-[state=checked]:translate-x-[1.35rem] data-[state=checked]:neu-accent group-active:w-[1.288rem] group-active:data-[state=checked]:translate-x-[1.212rem]" />
+      <RSwitch.Thumb className="neu-raised-sm neu-switch-thumb block h-[1.15rem] w-[1.15rem] translate-x-[3px] rounded-full transition-all duration-200 ease-[var(--ease-out)] will-change-transform data-[state=checked]:translate-x-[1.35rem] data-[state=checked]:neu-accent group-active:w-[1.288rem] group-active:data-[state=checked]:translate-x-[1.212rem]" />
     </RSwitch.Root>
   )
 }

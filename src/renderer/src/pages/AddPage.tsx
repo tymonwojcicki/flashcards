@@ -320,7 +320,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
           </div>
           {session.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">
-              Added cards are listed here. Ctrl+Enter adds a card. Tab switches sides. Math: write LaTeX between $ signs.
+              Added cards are listed here. Math: write LaTeX between $ signs.
             </p>
           ) : (
             <ul className="-mr-2 flex flex-col gap-2.5 overflow-y-auto pr-2">

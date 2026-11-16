@@ -340,7 +340,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
             ref={searchRef}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search cards…  (Ctrl+F)"
+            placeholder="Search cards…"
             aria-label="Search cards"
             className="pl-10"
             onKeyDown={(e) => {
