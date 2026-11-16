@@ -57,6 +57,7 @@ interface Option {
   id?: Id
   label: string
   depth?: number
+  path?: string[]
 }
 
 export function DeckCombobox({
@@ -92,7 +93,7 @@ export function DeckCombobox({
     for (const d of flat) {
       const label = deckPathLabel(d.path)
       if (!q || label.toLowerCase().includes(q) || d.path.join('::').toLowerCase().includes(q))
-        out.push({ key: d.id, kind: 'deck', id: d.id, label, depth: d.depth })
+        out.push({ key: d.id, kind: 'deck', id: d.id, label, depth: d.depth, path: d.path })
     }
     if (allowNew)
       out.push({ key: 'new', kind: 'new', label: q ? `Create deck "${query.trim()}"` : 'New deck…' })
@@ -183,6 +184,7 @@ export function DeckCombobox({
           role="combobox"
           aria-expanded={open}
           aria-label={label ?? 'Deck'}
+          title={!open && selectedLabel ? selectedLabel : undefined}
           aria-autocomplete="list"
           spellCheck={false}
           value={open || creating ? query : selectedLabel}
@@ -205,7 +207,7 @@ export function DeckCombobox({
         <div
           ref={listRef}
           role="listbox"
-          className="anim-menu-in neu-raised absolute top-full right-0 left-0 z-[70] mt-2 max-h-72 overflow-y-auto rounded-2xl p-1.5"
+          className="anim-menu-in neu-raised absolute top-full left-0 z-[70] mt-2 max-h-72 w-max max-w-[min(30rem,calc(100vw-2rem))] min-w-full overflow-y-auto rounded-2xl p-1.5"
         >
           {options.length === 0 && <div className="px-3 py-2 text-sm text-muted">No matching decks</div>}
           {options.map((o, i) => (
@@ -220,13 +222,22 @@ export function DeckCombobox({
                 choose(o)
               }}
               className={clsx(
-                'flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm',
+                'flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2 text-sm',
                 i === active ? 'bg-accent/12 text-accent' : 'text-text',
                 o.kind === 'deck' && o.id === value && 'font-semibold'
               )}
             >
-              {o.kind === 'new' && <Plus size={14} />}
-              <span className="truncate">{o.label}</span>
+              {o.kind === 'new' && <Plus size={14} className="mt-0.5 shrink-0" />}
+              {o.kind === 'deck' && o.path && o.path.length > 1 ? (
+                <span className="min-w-0 break-words">
+                  <span className={i === active ? 'opacity-70' : 'text-muted'}>
+                    {o.path.slice(0, -1).join(' › ')} ›{' '}
+                  </span>
+                  <span>{o.path[o.path.length - 1]}</span>
+                </span>
+              ) : (
+                <span className="min-w-0 break-words">{o.label}</span>
+              )}
             </div>
           ))}
         </div>

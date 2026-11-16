@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import clsx from 'clsx'
 import { useApp } from '@renderer/store/app'
 import { useShortcut } from '@renderer/lib/shortcuts'
 import { DialogHost, Toaster } from '@renderer/components/ui'
@@ -45,6 +46,24 @@ export default function App(): React.JSX.Element {
   const setHelpOpen = useApp((s) => s.setHelpOpen)
   const toggleHints = useApp((s) => s.toggleHints)
 
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem('sidebar-collapsed', c ? '0' : '1')
+      } catch {
+        /* ignore */
+      }
+      return !c
+    })
+  }, [])
+
   useEffect(() => {
     void init()
   }, [init])
@@ -64,8 +83,9 @@ export default function App(): React.JSX.Element {
     <div className="flex h-full text-text">
       {ready && (
         <>
-          {!studying && <Sidebar />}
-          <div className="flex min-w-0 flex-1 flex-col">
+          {!studying && <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />}
+          {/* Collapsed rail is 4.5rem + 1rem margin; mirror it on the right so content is centred on the window. */}
+          <div className={clsx('flex min-w-0 flex-1 flex-col', collapsed && !studying && 'pr-[5.5rem]')}>
             <ReadOnlyBanner />
             <main className="min-h-0 flex-1 overflow-y-auto p-6">
               <CurrentPage />

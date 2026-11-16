@@ -20,6 +20,9 @@ export function getScheduler(cfg: PresetConfig): Promise<Scheduler> {
   let s = cache.get(key)
   if (!s) {
     const base = {
+      // FSRS-6 (Anki's current default). FSRS-7's untrained defaults are very aggressive for new
+      // cards (Easy on a new card = ~54 days vs ~8 days with FSRS-6).
+      version: 'FSRS-6',
       allowModelOverride: false, // respect user's learning steps
       desiredRetention: cfg.desiredRetention,
       enableShortTerm: true,

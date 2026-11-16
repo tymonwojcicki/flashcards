@@ -5,14 +5,16 @@ import { CardState } from '@shared/types'
 import type { BrowseQuery, BrowseRow, Id } from '@shared/types'
 import { Button, EmptyState, Input, Panel, Select, confirm, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
-import { relativeDue, deckPathLabel, plural } from '@renderer/lib/format'
+import { deckPathLabel, plural } from '@renderer/lib/format'
 import { RichHtml } from '@renderer/lib/html'
 import { DeckCombobox } from '@renderer/features/editor/DeckCombobox'
 import { plainText } from '@renderer/features/browse/text'
 import { MoveDialog, TagsDialog } from '@renderer/features/browse/BulkDialogs'
 
 const PAGE = 200
-const COLS = 'grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.2fr)_4.75rem_5.5rem_2.5rem]'
+// Narrow tables show the deck under the front text; wide ones get a Deck column.
+const COLS =
+  'grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_5.75rem_4.5rem_5.25rem] @4xl:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.1fr)_5.75rem_5rem_5.25rem]'
 
 const STATE_OPTIONS = [
   { value: 'all', label: 'All states' },
@@ -40,21 +42,45 @@ function stateQuery(v: string): BrowseQuery['state'] {
   }
 }
 
+const BADGE = 'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[0.7rem] leading-4 font-semibold whitespace-nowrap'
+
 function StateBadge({ row }: { row: BrowseRow }): React.JSX.Element {
   if (row.suspended)
-    return <span className="rounded-full bg-text/10 px-2 py-0.5 text-[0.7rem] font-semibold text-muted">Suspended</span>
+    return (
+      <span className={clsx(BADGE, 'bg-text/10 text-muted')}>
+        <Pause size={11} /> Suspended
+      </span>
+    )
   const map: Record<number, [string, string]> = {
     [CardState.New]: ['New', 'bg-easy/15 text-easy'],
     [CardState.Learning]: ['Learning', 'bg-hard/15 text-hard'],
     [CardState.Review]: ['Review', 'bg-good/15 text-good'],
-    [CardState.Relearning]: ['Relearn', 'bg-again/15 text-again']
+    [CardState.Relearning]: ['Relearning', 'bg-hard/15 text-hard']
   }
   const [label, cls] = map[row.state] ?? ['?', '']
-  return <span className={clsx('rounded-full px-2 py-0.5 text-[0.7rem] font-semibold', cls)}>{label}</span>
+  return <span className={clsx(BADGE, cls)}>{label}</span>
+}
+
+/** Short relative due text: "in 3 d", "overdue 2 d", "—" for new cards. */
+function dueInfo(row: BrowseRow, now: number = Date.now()): { text: string; overdue: boolean } {
+  if (row.state === CardState.New) return { text: '—', overdue: false }
+  const diff = row.due - now
+  const abs = Math.abs(diff)
+  const min = 60_000
+  const hour = 60 * min
+  const day = 24 * hour
+  let amount: string
+  if (abs < min) return { text: 'now', overdue: false }
+  if (abs < hour) amount = `${Math.round(abs / min)} min`
+  else if (abs < day) amount = `${Math.round(abs / hour)} h`
+  else if (abs < 60 * day) amount = `${Math.round(abs / day)} d`
+  else if (abs < 365 * day) amount = `${Math.round(abs / (30 * day))} mo`
+  else amount = `${Math.round((abs / (365 * day)) * 10) / 10} y`
+  return diff < 0 ? { text: `overdue ${amount}`, overdue: true } : { text: `in ${amount}`, overdue: false }
 }
 
 function dueLabel(row: BrowseRow): string {
-  return row.state === CardState.New ? '—' : relativeDue(row.due)
+  return dueInfo(row).text
 }
 
 export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }): React.JSX.Element {
@@ -333,7 +359,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
           value={deckId}
           onChange={setDeckId}
           allowAll
-          className="w-[180px] shrink-0"
+          className="w-[220px] shrink-0"
           label="Deck filter"
         />
         <div className="w-[180px] shrink-0">
@@ -389,19 +415,21 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
       )}
 
       <div className="flex min-h-0 flex-1 gap-5">
-        <div className="neu-inset flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
+        <div className="@container neu-inset flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-bg">
           <div
             className={clsx(
-              'grid shrink-0 gap-3 border-b border-shadow-dark/40 px-4 py-2.5 text-xs font-semibold tracking-wide text-muted uppercase',
+              'sticky top-0 z-10 grid shrink-0 gap-3 border-b border-text/10 bg-bg px-4 py-2.5 text-[0.68rem] font-semibold tracking-wider text-muted uppercase',
               COLS
             )}
           >
             <span>Front</span>
             <span>Back</span>
-            <span>Deck</span>
+            <span className="hidden @4xl:block">Deck</span>
             <span>State</span>
-            <span>Due</span>
-            <span className="text-right">Reps</span>
+            <span className="text-right">Due</span>
+            <span className="text-right whitespace-nowrap" title="Reviews / lapses">
+              Reps / Lapses
+            </span>
           </div>
           <div
             ref={listRef}
@@ -415,11 +443,11 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
             {rows.length === 0 && !loading && (
               <EmptyState
                 icon={<Search size={28} />}
-                title={hasFilters ? 'No matching cards' : 'No cards yet'}
+                title={hasFilters ? 'No cards match' : 'No cards yet'}
                 text={
                   hasFilters
-                    ? 'Change the search or clear a filter.'
-                    : 'Add cards to see them here.'
+                    ? 'No cards match the current search and filters. Edit the search or reset a filter.'
+                    : 'Use Add cards to create your first card. It will be listed here.'
                 }
                 action={
                   !hasFilters && (
@@ -432,6 +460,11 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
             )}
             {rows.map((r) => {
               const sel = selected.has(r.cardId)
+              const foc = focusedId === r.cardId
+              const due = dueInfo(r)
+              const front = plainText(r.front)
+              const back = plainText(r.back)
+              const deckFull = deckPathLabel(r.deckPath)
               return (
                 <div
                   key={r.cardId}
@@ -441,31 +474,54 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
                   onClick={(e) => onRowClick(r, e)}
                   onDoubleClick={() => navigate({ name: 'add', editNoteId: r.noteId })}
                   className={clsx(
-                    'grid cursor-default items-center gap-3 px-4 py-2 text-sm select-none',
+                    'grid cursor-default items-center gap-3 border-b border-text/[0.06] px-4 py-3 text-sm select-none',
                     COLS,
-                    sel ? 'bg-accent/12' : 'hover:bg-text/5',
-                    focusedId === r.cardId && 'shadow-[inset_3px_0_0_var(--accent)]',
-                    r.suspended && 'opacity-60'
+                    sel
+                      ? 'bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]'
+                      : clsx('hover:bg-accent/[0.05] hover:shadow-[inset_3px_0_0_color-mix(in_srgb,var(--accent)_45%,transparent)]', foc && 'shadow-[inset_3px_0_0_color-mix(in_srgb,var(--accent)_45%,transparent)]'),
+                    r.suspended && 'opacity-70'
                   )}
                 >
-                  <span className="truncate font-medium text-text">
-                    {r.direction === 'rev' && <span className="mr-1.5 text-xs text-muted">↺</span>}
-                    {plainText(r.front) || <span className="text-muted">(empty)</span>}
+                  <span className="min-w-0" title={front}>
+                    <span className="block truncate font-medium text-text">
+                      {r.direction === 'rev' && (
+                        <span className="mr-1.5 text-xs text-muted" title="Reverse card">
+                          ↺
+                        </span>
+                      )}
+                      {front || <span className="text-muted">(empty)</span>}
+                    </span>
+                    <span className="block truncate text-[0.68rem] text-muted @4xl:hidden" title={deckFull}>
+                      {r.deckPath[r.deckPath.length - 1]}
+                    </span>
                   </span>
-                  <span className="truncate text-muted">{plainText(r.back)}</span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs text-text">{deckPathLabel(r.deckPath)}</span>
+                  <span className="truncate text-muted" title={back}>
+                    {back}
+                  </span>
+                  <span className="hidden min-w-0 @4xl:block" title={deckFull}>
+                    <span className="block truncate text-xs text-muted">{r.deckPath[r.deckPath.length - 1]}</span>
                     {r.tags.length > 0 && (
-                      <span className="block truncate text-[0.68rem] text-muted">{r.tags.join(' · ')}</span>
+                      <span className="block truncate text-[0.68rem] text-muted/80" title={r.tags.join(', ')}>
+                        {r.tags.join(' · ')}
+                      </span>
                     )}
                   </span>
                   <span>
                     <StateBadge row={r} />
                   </span>
-                  <span className="truncate text-xs text-muted">{dueLabel(r)}</span>
-                  <span className="text-right text-xs text-muted tabular-nums">
+                  <span
+                    className={clsx(
+                      'truncate text-right font-mono text-xs tabular-nums',
+                      due.overdue ? 'font-semibold text-again' : 'text-muted'
+                    )}
+                    title={r.state === CardState.New ? 'Not studied yet' : new Date(r.due).toLocaleString()}
+                  >
+                    {due.text}
+                  </span>
+                  <span className="text-right font-mono text-xs text-muted tabular-nums" title={`${plural(r.reps, 'review')}, ${plural(r.lapses, 'lapse')}`}>
                     {r.reps}
-                    {r.lapses > 0 && <span className="text-again"> / {r.lapses}</span>}
+                    <span className="opacity-50"> / </span>
+                    <span className={r.lapses >= 3 ? 'font-bold text-again' : undefined}>{r.lapses}</span>
                   </span>
                 </div>
               )
@@ -485,7 +541,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
           </div>
         </div>
 
-        <Panel className="hidden w-[340px] shrink-0 flex-col gap-4 overflow-y-auto lg:flex">
+        <Panel className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto lg:flex">
           {focusedRow ? (
             <>
               <div>

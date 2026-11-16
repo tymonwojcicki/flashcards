@@ -86,14 +86,7 @@ function NavButton({ item, collapsed, badge }: { item: NavItem; collapsed: boole
   )
 }
 
-export function Sidebar(): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('sidebar-collapsed') === '1'
-    } catch {
-      return false
-    }
-  })
+export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }): React.JSX.Element {
   const deckTree = useApp((s) => s.deckTree)
   const showHints = useApp((s) => s.prefs.showHotkeyHints)
   const theme = useApp((s) => resolveTheme(s.prefs.theme))
@@ -118,14 +111,7 @@ export function Sidebar(): React.JSX.Element {
   }
 
   const toggleCollapsed = (): void => {
-    setCollapsed((c) => {
-      try {
-        localStorage.setItem('sidebar-collapsed', c ? '0' : '1')
-      } catch {
-        /* ignore */
-      }
-      return !c
-    })
+    onToggle()
     setHover(false)
   }
 
@@ -172,7 +158,7 @@ export function Sidebar(): React.JSX.Element {
 
         <div className="flex-1" />
 
-        <div className="flex flex-col gap-2 pt-3">
+        <div className={clsx('flex flex-col gap-2 pt-3', compact && 'items-center')}>
           <NavButton item={SETTINGS_ITEM} collapsed={compact} />
           {compact ? (
             <>

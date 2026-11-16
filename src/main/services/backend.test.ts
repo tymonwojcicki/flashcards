@@ -232,3 +232,16 @@ describe('media', () => {
     expect(m.size).toBe(1)
   })
 })
+
+describe('scheduler model', () => {
+  it('uses FSRS-6: Easy on a new card is about a week, not months', async () => {
+    const [d] = decks.ensureDeckPath(col, 'M')
+    notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: false })
+    const id = (await study.getSession(col, d, 'mixed')).cards[0].card.id
+    const easy = (await study.previewIntervals(col, id))[Rating.Easy]
+    expect(easy).toMatch(/^\d+d$/)
+    const days = parseInt(easy)
+    expect(days).toBeGreaterThanOrEqual(5)
+    expect(days).toBeLessThanOrEqual(12)
+  })
+})
