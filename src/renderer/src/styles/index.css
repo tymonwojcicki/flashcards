@@ -87,6 +87,25 @@
   --accent-amb: rgb(110 90 240 / 0.15);
   --accent-contrast: #ffffff;
 }
+/* Rose: warm pink to coral. Text shade is a deep rose for contrast on the light background. */
+:root[data-accent="rose"] {
+  --accent: #be123c;
+  --accent-1: #fb7185;
+  --accent-2: #e1306c;
+  --accent-grad: linear-gradient(135deg, #fb7185 0%, #f43f5e 55%, #e1306c 100%);
+  --accent-glow: rgb(244 63 94 / 0.3);
+  --accent-amb: rgb(244 63 94 / 0.14);
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-accent="rose"] {
+  --accent: #fda4af;
+  --accent-1: #fb7185;
+  --accent-2: #ec4899;
+  --accent-grad: linear-gradient(135deg, #fb7185 0%, #f43f5e 55%, #ec4899 100%);
+  --accent-glow: rgb(251 113 133 / 0.34);
+  --accent-amb: rgb(251 113 133 / 0.12);
+  --accent-contrast: #2a0510;
+}
 [data-theme="dark"][data-accent="ember"],
 [data-theme="dark"]:not([data-accent]) {
   --accent: #fb923c;
@@ -467,6 +486,14 @@ textarea:focus-visible,
 :root[data-accent="aqua"] {
   --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 30%);
   --shine-band-c: color-mix(in srgb, var(--accent-2), white 62%);
+}
+:root[data-accent="rose"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 30%);
+  --shine-band-c: color-mix(in srgb, var(--accent-1), white 55%);
+}
+[data-theme="dark"][data-accent="rose"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-1), var(--accent) 40%);
+  --shine-band-c: color-mix(in srgb, var(--accent), white 70%);
 }
 :root[data-accent="iris"] {
   --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 25%);

@@ -41,7 +41,7 @@ export function resolveTheme(theme: Prefs['theme']): 'light' | 'dark' {
 function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
   const theme = resolveTheme(prefs.theme)
-  const accent = ['ember', 'aqua', 'iris'].includes(prefs.accent) ? prefs.accent : 'ember'
+  const accent = ['ember', 'aqua', 'iris', 'rose'].includes(prefs.accent) ? prefs.accent : 'ember'
   const started = root.classList.contains('font-anim') // false on the first apply at startup
   const themeChanged = started && root.dataset.theme !== theme
   const accentChanged = started && root.dataset.accent !== accent
@@ -160,7 +160,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   cycleAccent: () => {
-    const order: Prefs['accent'][] = ['ember', 'aqua', 'iris']
+    const order: Prefs['accent'][] = ['ember', 'aqua', 'iris', 'rose']
     const next = order[(order.indexOf(get().prefs.accent) + 1) % order.length]
     void get().setPrefs({ accent: next })
     toast(`Accent: ${next[0].toUpperCase()}${next.slice(1)}`, { kind: 'info' })

@@ -148,7 +148,7 @@ export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
 export type Theme = 'light' | 'dark' | 'system'
 
 /** Accent palette (independent of light/dark). */
-export type Accent = 'ember' | 'aqua' | 'iris'
+export type Accent = 'ember' | 'aqua' | 'iris' | 'rose'
 
 /** Per-device preferences (NOT synced; stored in userData). */
 export interface Prefs {

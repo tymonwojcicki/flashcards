@@ -6,7 +6,8 @@ import type { Accent } from '@shared/types'
 const ACCENTS: { value: Accent; label: string; grad: string; glow: string }[] = [
   { value: 'ember', label: 'Ember', grad: 'linear-gradient(135deg,#fbbf24,#f97316 55%,#ea4a1f)', glow: 'rgb(249 100 30 / 0.55)' },
   { value: 'aqua', label: 'Aqua', grad: 'linear-gradient(135deg,#14b8a6,#22c5a0 55%,#4ade80)', glow: 'rgb(30 190 160 / 0.5)' },
-  { value: 'iris', label: 'Iris', grad: 'linear-gradient(135deg,#4f46e5,#7c4af0 55%,#a78bfa)', glow: 'rgb(120 90 245 / 0.5)' }
+  { value: 'iris', label: 'Iris', grad: 'linear-gradient(135deg,#4f46e5,#7c4af0 55%,#a78bfa)', glow: 'rgb(120 90 245 / 0.5)' },
+  { value: 'rose', label: 'Rose', grad: 'linear-gradient(135deg,#fb7185,#f43f5e 55%,#e1306c)', glow: 'rgb(244 63 94 / 0.5)' }
 ]
 
 /** Radio group of round gradient swatches. Arrow keys move the selection. */
