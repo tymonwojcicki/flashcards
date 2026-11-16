@@ -34,6 +34,8 @@ function createWindow(): void {
     if (/^https?:/.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  // The window never leaves the app page (e.g. a dropped .html file), so no foreign page gets window.api.
+  mainWindow.webContents.on('will-navigate', (e) => e.preventDefault())
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
