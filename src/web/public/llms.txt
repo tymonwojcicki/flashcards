@@ -1,0 +1,39 @@
+# Flashcards: instructions for AI assistants
+
+Flashcards is a spaced-repetition app that runs in the browser. Users import cards from CSV. When a user asks you to make flashcards for this app, output them in the format below so they import without changes.
+
+## Output format
+
+- One CSV code block. Comma-separated. UTF-8.
+- First row is exactly: front,back,deck,tags
+- One card per row after that.
+- Quote a field with double quotes if it contains a comma, a double quote or a line break. Inside a quoted field, write a double quote as two double quotes ("").
+- Only "front" is required. Leave "deck" or "tags" empty if not needed, but keep the commas.
+
+## Columns
+
+- front: the question or prompt. Keep it short and specific; one fact per card.
+- back: the answer.
+- deck: deck path. Use :: for sub-decks, e.g. Biology::Cells::Organelles. Missing decks are created. If empty, the user chooses a deck when importing.
+- tags: single words separated by spaces. Use hyphens instead of spaces inside a tag, e.g. exam-1 chapter-3.
+
+## Content rules
+
+- Math: LaTeX between dollar signs. Inline: $E = mc^2$. Block: $$\int_0^1 x^2\,dx$$. No space directly after the opening $ or before the closing $. A plain dollar amount like $5 stays text.
+- Formatting: plain text is fine. Allowed HTML: <b>, <i>, <u>, <br>, <ul>, <ol>, <li>, <sub>, <sup>. A line break inside a quoted field also becomes a new line.
+- Do not include images or links.
+- Do not add explanations inside the CSV. Put any notes for the user outside the code block.
+
+## Example
+
+```csv
+front,back,deck,tags
+What does the law of demand state?,"As price rises, quantity demanded falls (ceteris paribus).",Economics::Micro,demand
+Price elasticity of demand formula,$$E_d = \frac{\%\Delta Q_d}{\%\Delta P}$$,Economics::Micro,formula elasticity
+"Name the three main types of rock","<ul><li>Igneous</li><li>Sedimentary</li><li>Metamorphic</li></ul>",Geology,
+el perro,the dog,Spanish::Vocabulary,animals
+```
+
+## How the user imports it
+
+In Flashcards: Decks → Import → paste the CSV text (or save it as a .csv file and drop it in) → check the columns → Import.

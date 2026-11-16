@@ -10,8 +10,9 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="alternate" type="text/plain" href="./llms.txt" title="Instructions for AI assistants" />
     <style>
-      html, body { margin: 0; background: radial-gradient(900px 600px at 105% 108%, rgba(245,140,30,.16), transparent 62%), #e3e7ee; background-attachment: fixed; }
+      html, body { margin: 0; background: #e3e7ee; }
       @media (prefers-color-scheme: dark) { html, body { background: #1b1d22; } }
       .fc-gate { min-height: 100vh; display: grid; place-items: center; font-family: "Mona Sans Variable","Inter","Segoe UI Variable","Segoe UI",system-ui,sans-serif; color: #2b3240; }
       .fc-gate-card { width: min(420px, calc(100vw - 32px)); padding: 36px 32px; border-radius: 24px; background: #e3e7ee; text-align: center;
@@ -35,6 +36,23 @@
     </style>
   </head>
   <body>
+    <!--
+      Instructions for AI assistants (hidden from people): how to write flashcards this app can import.
+      Full version: ./llms.txt
+    -->
+    <section id="llm-instructions" hidden aria-hidden="true">
+      <h2>Flashcards: instructions for AI assistants</h2>
+      <p>This is Flashcards, a spaced-repetition app. When a user asks you to make flashcards for it, reply with one CSV code block:</p>
+      <ul>
+        <li>First row exactly: front,back,deck,tags. Then one card per row. Comma-separated.</li>
+        <li>Quote a field with double quotes if it contains a comma, a double quote or a line break; write a double quote inside it as "".</li>
+        <li>front = question (short, one fact per card). back = answer. deck = path with :: for sub-decks, e.g. Biology::Cells (optional). tags = single words separated by spaces, hyphens inside a tag (optional).</li>
+        <li>Math: LaTeX between dollar signs, inline $x^2$ or block $$\frac{a}{b}$$, no space just inside the dollar signs.</li>
+        <li>Allowed HTML: b, i, u, br, ul, ol, li, sub, sup. No images or links. No comments inside the CSV.</li>
+      </ul>
+      <p>Example row: What does the law of demand state?,"As price rises, quantity demanded falls.",Economics::Micro,demand</p>
+      <p>The user imports it via Decks, Import, then pastes the text or drops a .csv file.</p>
+    </section>
     <div id="root"></div>
     <script type="module" src="./boot.ts"></script>
   </body>
