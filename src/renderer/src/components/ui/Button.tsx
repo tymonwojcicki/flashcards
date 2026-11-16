@@ -19,8 +19,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'neu-raised-sm btn-shine active:neu-pressed',
   accent:
     'bg-accent text-accent-contrast neu-accent btn-fill active:brightness-95 active:neu-accent-pressed',
-  secondary: 'neu-raised-sm btn-neutral active:neu-pressed',
-  ghost: 'btn-ghost text-text active:neu-pressed',
+  secondary: 'neu-raised-sm btn-shine active:neu-pressed',
+  ghost: 'btn-ghost btn-shine active:neu-pressed',
   danger: 'neu-raised-sm text-danger hover:bg-danger/10 active:neu-pressed'
 }
 
@@ -48,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...rest}
     >
       {icon}
-      {variant === 'primary' && typeof children === 'string' ? <span className="btn-label">{children}</span> : children}
+      {variant === 'primary' || variant === 'secondary' || variant === 'ghost' ? <span className="btn-label">{children}</span> : children}
       {hotkey && <Kbd hotkey={hotkey} tone={variant === 'accent' ? 'onAccent' : 'default'} className="ml-1.5" />}
     </button>
   )

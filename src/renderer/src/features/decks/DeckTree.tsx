@@ -379,12 +379,12 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                 navigate({ name: 'add', deckId: d.id })
               }}
               className={clsx(
-                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-bold whitespace-nowrap text-muted btn-ghost press active:neu-pressed',
+                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-bold whitespace-nowrap btn-ghost btn-shine press active:neu-pressed',
                 reveal
               )}
             >
               <Plus size={14} />
-              Add cards
+              <span className="btn-label">Add cards</span>
             </button>
 
             <div

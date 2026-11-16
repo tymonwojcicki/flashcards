@@ -391,9 +391,10 @@ textarea:focus-visible,
       inset 1px 1px 0 rgb(255 255 255 / 0.45), inset 0 -2px 5px rgb(0 0 0 / 0.14);
   }
 }
-/* Accent text: label turns into an accent gradient and a soft light band sweeps across once. */
+/* All text buttons: plain text at rest; on hover the label turns into the accent gradient and a
+   soft light band sweeps across once. */
 @utility btn-shine {
-  color: var(--accent);
+  color: var(--text);
   & .btn-label {
     --shine-mid: color-mix(in srgb, var(--accent), var(--accent-2) 45%);
     --shine-band: color-mix(in srgb, var(--accent-1), white 35%);

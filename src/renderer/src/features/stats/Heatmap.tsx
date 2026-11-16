@@ -4,9 +4,9 @@ import { formatDay, isoDay, parseDay } from './dates'
 
 const CELL = 14
 const GAP = 3
-const LEFT = 28
+const LEFT = 30
 const TOP = 18
-const DAY_LABELS: Record<number, string> = { 0: 'Mon', 2: 'Wed', 4: 'Fri' }
+const DAY_LABELS: Record<number, string> = { 0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun' }
 
 interface Cell {
   key: string
