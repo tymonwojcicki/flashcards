@@ -103,7 +103,7 @@ export class FolderStore implements DataStore {
   kind = 'folder' as const
   constructor(readonly root: DirHandle) {}
   get label() {
-    return this.root.name
+    return `${this.root.name} (folder)`
   }
 
   private async dirFor(path: string, create: boolean): Promise<[FileSystemDirectoryHandle, string] | null> {

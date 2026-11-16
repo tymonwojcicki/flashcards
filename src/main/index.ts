@@ -27,7 +27,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => mainWindow.show())
-  mainWindow.on('focus', () => void state.checkExternalChanges())
+  mainWindow.on('focus', () => void state.session.checkExternalChanges())
 
   // Open external links in the browser, never inside the app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -83,7 +83,14 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('before-quit', () => state.dispose())
+// Saving is async: hold the quit until the collection is written and the lock released.
+let quitting = false
+app.on('before-quit', (e) => {
+  if (quitting) return
+  quitting = true
+  e.preventDefault()
+  void state.dispose().finally(() => app.quit())
+})
 
 app.on('window-all-closed', () => {
   app.quit()

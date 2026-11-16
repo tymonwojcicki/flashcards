@@ -16,6 +16,7 @@ import type { LockStatus, StartupState } from '../../shared/types'
 export interface DataStore {
   /** Only a folder has a lock, backups and conflict files; browser storage has none of them. */
   kind: 'folder' | 'browser'
+  /** Shown to the user as where the data lives (the startup state's `dataDir`). */
   label: string
   read(path: string): Promise<Uint8Array | null>
   write(path: string, bytes: Uint8Array | string): Promise<void>
@@ -115,10 +116,15 @@ export class DataFolderSession {
     this.release()
     this.store = store
     clearUndo()
+    // Check the lock before touching the folder: one locked by another device is never written to.
+    const foreign = await this.foreignLock()
     const bytes = await store.read(DB_FILE)
     this.col = new StoreCollection(await this.opts.sql(), store, bytes)
     this.col.knownModified = (await store.modified(DB_FILE)) ?? 0
-    if (!bytes) {
+    if (foreign) {
+      this.col.readOnly = true
+      this.lockStatus = { kind: 'locked', device: foreign.device, since: foreign.since }
+    } else if (!bytes) {
       this.col.markDirty()
       await this.col.flush()
     }
@@ -126,11 +132,7 @@ export class DataFolderSession {
       this.changedSinceBackup = true
       this.opts.emit('collection-changed')
     }
-    const foreign = await this.foreignLock()
-    if (foreign) {
-      this.col.readOnly = true
-      this.lockStatus = { kind: 'locked', device: foreign.device, since: foreign.since }
-    } else {
+    if (!foreign) {
       await this.takeLock()
       // takeLock may already have found a takeover and gone read-only.
       if (!this.col.readOnly) {
@@ -205,10 +207,11 @@ export class DataFolderSession {
     this.backupTimer = null
   }
 
-  /** "Open anyway": take the lock from the other device, picking up its latest changes first. */
+  /** "Open anyway": take the lock from the other device, picking up its latest changes first, then back up. */
   async forceUnlock(): Promise<StartupState> {
     if (await this.col.changedOnDisk()) await this.reload()
     await this.takeLock()
+    if (!this.col.readOnly) await this.backup()
     return this.startupState()
   }
 
@@ -243,15 +246,21 @@ export class DataFolderSession {
       .map((f) => ({ file: f.name, modified: f.modified, size: f.size }))
   }
 
-  /** "use" replaces the collection with the conflict copy (after a backup); either way the copy moves to backups/. */
+  /**
+   * "use" replaces the collection with the conflict copy (after a backup); either way the copy moves to backups/.
+   * A copy that is already gone (e.g. the sync client removed it) changes nothing.
+   */
   async resolveConflict(file: string, action: 'use' | 'discard'): Promise<StartupState> {
+    // Only conflict copies in the folder's root, never another path the renderer sends.
+    if (!isConflictName(file, DB_FILE)) throw new Error(`Not a conflict copy: ${file}`)
     const bytes = await this.store.read(file)
-    if (bytes && action === 'use') {
+    if (!bytes) return this.startupState()
+    if (action === 'use') {
       await this.backup()
       await this.store.write(DB_FILE, bytes)
       await this.reload()
     }
-    if (bytes) await this.store.write(`${BACKUP_DIR}/conflict-${Date.now()}-${file}`, bytes)
+    await this.store.write(`${BACKUP_DIR}/conflict-${Date.now()}-${file}`, bytes)
     await this.store.remove(file)
     this.opts.emit('collection-reloaded')
     return this.startupState()
@@ -259,7 +268,7 @@ export class DataFolderSession {
 
   async startupState(): Promise<StartupState> {
     return {
-      dataDir: this.folder ? `${this.store.label} (folder)` : 'This browser only',
+      dataDir: this.store.label,
       lock: this.lockStatus,
       conflicts: await this.conflicts(),
       readOnly: this.col.readOnly

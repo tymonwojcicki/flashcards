@@ -8,10 +8,8 @@ import * as decks from './services/decks'
 import * as notes from './services/notes'
 import * as study from './services/study'
 import * as io from './services/importExport'
-import { backup } from './services/backup'
 import { safeFileName } from './services/backupCore'
 import * as trash from './services/trash'
-import { onOpen } from './services/startup'
 import { MEDIA_SCHEME, nodeMediaPort, resolveMedia, saveCsvImage, saveMediaBytes, saveMediaFile } from "./services/media"
 
 type Handlers = { [K in keyof Api]: (...args: Parameters<Api[K]>) => ReturnType<Api[K]> | Promise<ReturnType<Api[K]>> }
@@ -24,10 +22,10 @@ let pendingBackup: Uint8Array | null = null
 
 const handlers: Handlers = {
   // app
-  getStartupState: () => state.startupState(),
-  forceUnlock: () => state.forceUnlock(),
-  openReadOnly: () => state.openReadOnly(),
-  resolveConflict: (file, action) => state.resolveConflict(file, action),
+  getStartupState: () => state.session.startupState(),
+  forceUnlock: () => state.session.forceUnlock(),
+  openReadOnly: () => state.session.openReadOnly(),
+  resolveConflict: (file, action) => state.session.resolveConflict(file, action),
   chooseDataDir: async () => {
     const r = await dialog.showOpenDialog(win(), {
       title: 'Choose data folder (e.g. inside OneDrive or Dropbox)',
@@ -39,9 +37,9 @@ const handlers: Handlers = {
   openDataDir: () => {
     void shell.openPath(c().dir)
   },
-  backupNow: () => {
-    c().saveNow()
-    return backup(c().dir) ?? ''
+  backupNow: async () => {
+    const name = await state.session.backup()
+    return name ? path.join(c().dir, ...name.split('/')) : ''
   },
   runAutoBackup: () => null,
   getAutoBackup: () => ({ available: false, enabled: false, lastAt: null }),
@@ -58,15 +56,11 @@ const handlers: Handlers = {
     pendingBackup = bytes
     return path.basename(r.filePaths[0])
   },
-  restoreBackup: () => {
+  restoreBackup: async () => {
     if (!pendingBackup) throw new Error('No backup file chosen.')
-    c().saveNow()
-    backup(c().dir) // safety copy of the current data
-    c().restoreFrom(pendingBackup)
+    // The data folder always takes the safety backup, so there is no separate safety copy.
+    await state.session.restore(pendingBackup, () => {})
     pendingBackup = null
-    c().saveNow()
-    study.clearUndo()
-    onOpen(c())
   },
 
   // trash

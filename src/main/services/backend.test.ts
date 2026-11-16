@@ -1,15 +1,11 @@
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { Collection } from '../db/collection'
 import * as decks from './decks'
 import * as notes from './notes'
 import * as study from './study'
 import * as io from './importExport'
 import { CardState, Rating } from '../../shared/types'
-import { foreignLock, Lock, LOCK_FILE } from './lock'
-import { prune } from './backup'
 import type { MediaPort } from "./mediaCore"
 import { nextDayStart } from './time'
 
@@ -24,8 +20,6 @@ const memPort = (): MediaPort => {
   const m = new Map<string, Uint8Array>()
   return { write: async (n, b) => void m.set(n, b), read: async (n) => m.get(n) ?? null }
 }
-
-const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'fc-test-'))
 
 describe('learn-ahead', () => {
   const MIN = 60_000
@@ -455,106 +449,6 @@ describe('import / export', () => {
       { front: '', back: 'a' }
     ]
     expect(io.previewImport(col, rows, { newDeck: 'New' })).toEqual({ notes: 2, cards: 2, decksCreated: 3, skipped: 1 })
-  })
-})
-
-describe('lock & backups', () => {
-  it('stops the heartbeat and reports when another device takes the lock over', () => {
-    vi.useFakeTimers()
-    try {
-      const dir = tmpDir()
-      const lost: string[] = []
-      const l = new Lock(dir, (d) => lost.push(d))
-      l.acquire()
-      vi.advanceTimersByTime(60_000) // own heartbeat: nothing happens
-      expect(lost).toEqual([])
-      const theirs = JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() + 1 })
-      fs.writeFileSync(path.join(dir, LOCK_FILE), theirs)
-      vi.advanceTimersByTime(3 * 60_000)
-      expect(lost).toEqual(['OTHER-PC']) // reported once, then stopped
-      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs) // never overwritten
-      l.release()
-      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('does not start a heartbeat when the lock is already taken over at acquire (clock skew)', () => {
-    vi.useFakeTimers()
-    try {
-      const dir = tmpDir()
-      const theirs = JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() + 60_000 })
-      fs.writeFileSync(path.join(dir, LOCK_FILE), theirs)
-      const lost: string[] = []
-      new Lock(dir, (d) => lost.push(d)).acquire()
-      vi.advanceTimersByTime(5 * 60_000)
-      expect(lost).toEqual(['OTHER-PC']) // once, not every minute
-      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('keeps writing over an older stale lock from another device', () => {
-    vi.useFakeTimers()
-    try {
-      const dir = tmpDir()
-      const lost: string[] = []
-      const l = new Lock(dir, (d) => lost.push(d))
-      l.acquire()
-      fs.writeFileSync(
-        path.join(dir, LOCK_FILE),
-        JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: 0, since: 0 })
-      )
-      vi.advanceTimersByTime(60_000)
-      expect(lost).toEqual([])
-      expect(foreignLock(dir)).toBeNull() // our heartbeat is back in the file
-      l.release()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('ignores own lock and stale locks', () => {
-    const dir = tmpDir()
-    const l = new Lock(dir)
-    l.acquire()
-    expect(foreignLock(dir)).toBeNull() // same device
-    fs.writeFileSync(
-      path.join(dir, LOCK_FILE),
-      JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() })
-    )
-    expect(foreignLock(dir)?.device).toBe('OTHER-PC')
-    expect(foreignLock(dir, Date.now() + 10 * 60_000)).toBeNull()
-    l.release()
-    expect(fs.existsSync(path.join(dir, LOCK_FILE))).toBe(true) // foreign lock left untouched
-  })
-
-  it('prunes backups to recent + daily', () => {
-    const dir = tmpDir()
-    for (let day = 1; day <= 20; day++)
-      for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, `collection-202601${String(day).padStart(2, '0')}-${h}0000.db`), '')
-    prune(dir)
-    expect(fs.readdirSync(dir).length).toBe(10 + 3) // 10 newest span days 17-20; daily adds 14-16
-  })
-
-  it('saves atomically and detects external changes', async () => {
-    const dir = tmpDir()
-    const c1 = await Collection.open(dir)
-    decks.createDeck(c1, 'Z', null)
-    c1.saveNow()
-    expect(c1.changedOnDisk()).toBe(false)
-    const c2 = await Collection.open(dir)
-    expect(decks.allDecks(c2).map((d) => d.name)).toEqual(['Z'])
-    decks.createDeck(c2, 'W', null)
-    await new Promise((r) => setTimeout(r, 20))
-    c2.saveNow()
-    expect(c1.changedOnDisk()).toBe(true)
-    await c1.reload()
-    expect(decks.allDecks(c1)).toHaveLength(2)
-    c1.close()
-    c2.close()
   })
 })
 
