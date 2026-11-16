@@ -62,12 +62,10 @@ interface Recipe {
 
 const R: Record<SoundName, Recipe> = {
   // Frequent: a dry, crisp card-flip tick (tap + a very short high mallet), no room.
+  // Barely-there soft paper touch: low, dull and quiet so it never draws attention.
   reveal: {
-    events: [
-      { kind: 'tap', at: 0, vel: 0.45, center: 3200 },
-      { kind: 'mallet', f: N.E6, at: 0.004, vel: 0.22, decay: 0.06, tone: 0.2 }
-    ],
-    cutoff: 7000,
+    events: [{ kind: 'tap', at: 0, vel: 0.16, center: 1500 }],
+    cutoff: 2200,
     room: 0
   },
   // Session start: quick two-note "ready".
