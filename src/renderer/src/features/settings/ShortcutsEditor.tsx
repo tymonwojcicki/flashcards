@@ -104,7 +104,7 @@ export function ShortcutsEditor(): React.JSX.Element {
                     aria-pressed={isRec}
                     title={isRec ? 'Press the new key combination. Esc cancels.' : 'Click to change'}
                     className={clsx(
-                      'group/key relative flex h-9 min-w-[9.5rem] items-center justify-end gap-2 rounded-xl px-3 transition-all duration-150',
+                      'group/key relative flex h-9 items-center rounded-xl px-2 transition-all duration-150',
                       isRec
                         ? 'neu-inset ring-2 ring-accent/45'
                         : 'hover:bg-text/[0.04] hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--text)_10%,transparent)] focus-visible:bg-text/[0.04]'
@@ -120,7 +120,7 @@ export function ShortcutsEditor(): React.JSX.Element {
                         <Pencil
                           size={12}
                           aria-hidden
-                          className="text-muted opacity-0 transition-opacity duration-150 group-hover/key:opacity-70 group-focus-visible/key:opacity-70"
+                          className="pointer-events-none absolute top-1/2 right-full mr-1 -translate-y-1/2 text-muted opacity-0 transition-opacity duration-150 group-hover/key:opacity-70 group-focus-visible/key:opacity-70"
                         />
                         <Kbd hotkey={keys} force />
                       </>
