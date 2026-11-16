@@ -28,6 +28,8 @@ export type SoundName =
   | 'accent'
   | 'nav'
   | 'delete'
+  | 'select'
+  | 'tick'
 
 // Pentatonic note frequencies (Hz).
 const N = {
@@ -96,14 +98,27 @@ const R: Record<SoundName, Recipe> = {
     cutoff: 3200,
     room: 0.12
   },
+  // Accent change: same shimmer family as the theme sound, a brighter, wider rise.
   accent: {
     events: [
-      { kind: 'tap', at: 0, vel: 0.3, center: 3000 },
-      { kind: 'mallet', f: N.A5, at: 0.008, vel: 0.42, decay: 0.32, tone: 0.6 }
+      { kind: 'mallet', f: N.E5, at: 0, vel: 0.3, decay: 0.2, tone: 0.6 },
+      { kind: 'mallet', f: N.A5, at: 0.045, vel: 0.33, decay: 0.24, tone: 0.6 },
+      { kind: 'mallet', f: N.E6, at: 0.09, vel: 0.36, decay: 0.42, tone: 0.65 }
+    ],
+    cutoff: 5200,
+    room: 0.14
+  },
+  // Choosing an option (segmented buttons, dropdowns, menu items): soft tap with a faint note.
+  select: {
+    events: [
+      { kind: 'tap', at: 0, vel: 0.32, center: 2600 },
+      { kind: 'mallet', f: N.G5, at: 0.004, vel: 0.14, decay: 0.08, tone: 0.3 }
     ],
     cutoff: 5000,
-    room: 0.08
+    room: 0
   },
+  // Slider detent: very quiet, dry.
+  tick: { events: [{ kind: 'tap', at: 0, vel: 0.14, center: 3600 }], cutoff: 6000, room: 0 },
   // Sidebar navigation: a light, dry tick.
   nav: { events: [{ kind: 'tap', at: 0, vel: 0.32, center: 2400 }], cutoff: 6000, room: 0 },
   // Moved to Trash: a soft low "set down".

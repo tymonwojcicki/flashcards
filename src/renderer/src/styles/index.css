@@ -223,14 +223,37 @@ html.theme-sweep::view-transition-new(root) {
   mask-size: 320% 100%;
   animation: theme-sweep 520ms var(--ease-out) both;
 }
+.accent-sweep {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  background-image: linear-gradient(
+    115deg,
+    transparent 38%,
+    color-mix(in srgb, var(--accent-1) 40%, transparent) 47%,
+    color-mix(in srgb, var(--accent-2) 46%, transparent) 50.5%,
+    color-mix(in srgb, var(--accent-1) 22%, transparent) 54%,
+    transparent 62%
+  );
+  background-size: 320% 100%;
+  background-repeat: no-repeat;
+  animation: accent-sweep 520ms var(--ease-out) both;
+}
+@keyframes accent-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
 @keyframes theme-sweep {
   from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
   to { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
 }
 
-/* Smooth text-size changes from Settings (everything sized in rem follows). */
-html.font-anim {
-  transition: font-size 240ms var(--ease-out);
+/* Text-size change from Settings: quick crossfade between before/after snapshots (see applyPrefs). */
+html.font-swap::view-transition-old(root),
+html.font-swap::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: var(--ease-out);
 }
 html,
 body,

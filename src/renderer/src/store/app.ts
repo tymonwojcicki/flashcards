@@ -48,6 +48,15 @@ function applyPrefs(prefs: Prefs): void {
   const swap = (): void => {
     root.dataset.theme = theme
     root.dataset.accent = accent
+    // Accent-only change: a soft band in the new accent rides along the sweep edge so the
+    // change is visible (only small elements change colour otherwise).
+    if (accentChanged && !themeChanged && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const band = document.createElement('div')
+      band.className = 'accent-sweep'
+      band.setAttribute('aria-hidden', 'true')
+      band.addEventListener('animationend', () => band.remove())
+      document.body.appendChild(band)
+    }
   }
   if (themeChanged || accentChanged) {
     playSound(themeChanged ? (theme === 'dark' ? 'themeDark' : 'themeLight') : 'accent')
@@ -60,8 +69,20 @@ function applyPrefs(prefs: Prefs): void {
       void t.finished?.finally(() => root.classList.remove('theme-sweep'))
     } else swap()
   } else swap()
-  root.style.setProperty('--font-scale', String(prefs.fontScale || 1))
-  // Animate later font-size changes, but not the first apply at startup (no zoom on launch).
+  // Font size: swap in one step and crossfade snapshots (View Transitions), instead of animating
+  // font-size, which re-lays out the whole page every frame.
+  const scale = String(prefs.fontScale || 1)
+  if (root.style.getPropertyValue('--font-scale') !== scale) {
+    const setScale = (): void => root.style.setProperty('--font-scale', scale)
+    const vt = (document as Document & { startViewTransition?: (cb: () => void) => unknown }).startViewTransition
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (started && vt && !reduce && !themeChanged && !accentChanged) {
+      root.classList.add('font-swap')
+      const t = vt.call(document, setScale) as { finished?: Promise<void> }
+      void t.finished?.finally(() => root.classList.remove('font-swap'))
+    } else setScale()
+  }
+  // Marks that the first apply at startup is done (later changes animate; launch doesn't).
   if (!root.classList.contains('font-anim')) {
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('font-anim')))
   }

@@ -64,7 +64,14 @@ export interface SelectProps {
 
 export function Select({ value, onValueChange, options, placeholder, id, disabled, className, ...rest }: SelectProps): React.JSX.Element {
   return (
-    <RSelect.Root value={value} onValueChange={onValueChange} disabled={disabled}>
+    <RSelect.Root
+      value={value}
+      onValueChange={(v) => {
+        if (v !== value) playSound('select')
+        onValueChange(v)
+      }}
+      disabled={disabled}
+    >
       <RSelect.Trigger
         id={id}
         aria-label={rest['aria-label']}
@@ -145,13 +152,41 @@ export interface SliderProps {
   disabled?: boolean
   'aria-label'?: string
   className?: string
+  /** false = no detent ticks (e.g. the volume slider, which plays its own preview). */
+  sound?: boolean
+  /** Called when the user releases the thumb (or after a keyboard step). */
+  onValueCommit?: (value: number) => void
 }
 
-export function Slider({ value, onValueChange, min, max, step = 1, disabled, className, ...rest }: SliderProps): React.JSX.Element {
+let lastTick = 0
+
+export function Slider({
+  value,
+  onValueChange,
+  onValueCommit,
+  min,
+  max,
+  step = 1,
+  disabled,
+  className,
+  sound = true,
+  ...rest
+}: SliderProps): React.JSX.Element {
   return (
     <RSlider.Root
       value={[value]}
-      onValueChange={(v) => onValueChange(v[0] ?? min)}
+      onValueCommit={onValueCommit ? (v) => onValueCommit(v[0] ?? min) : undefined}
+      onValueChange={(v) => {
+        const next = v[0] ?? min
+        if (sound && next !== value) {
+          const now = Date.now()
+          if (now - lastTick > 45) {
+            lastTick = now
+            playSound('tick')
+          }
+        }
+        onValueChange(next)
+      }}
       min={min}
       max={max}
       step={step}

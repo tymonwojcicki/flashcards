@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { Panel, Slider, Switch } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
@@ -12,6 +13,7 @@ let lastPreview = 0
 export function GeneralTab(): React.JSX.Element {
   const prefs = useApp((s) => s.prefs)
   const setPrefs = useApp((s) => s.setPrefs)
+  const [fontDraft, setFontDraft] = useState<number | null>(null)
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,6 +65,7 @@ export function GeneralTab(): React.JSX.Element {
             <div className="flex items-center gap-3">
               <Slider
                 aria-label="Sound volume"
+                sound={false}
                 min={0}
                 max={1}
                 step={0.05}
@@ -90,16 +93,24 @@ export function GeneralTab(): React.JSX.Element {
               min={0.85}
               max={1.3}
               step={0.05}
-              value={prefs.fontScale}
-              onValueChange={(fontScale) => void setPrefs({ fontScale: Math.round(fontScale * 100) / 100 })}
+              value={fontDraft ?? prefs.fontScale}
+              onValueChange={(v) => setFontDraft(Math.round(v * 100) / 100)}
+              onValueCommit={(v) => {
+                setFontDraft(null)
+                void setPrefs({ fontScale: Math.round(v * 100) / 100 })
+              }}
             />
             <span className="w-12 text-right text-sm font-semibold tabular-nums">
-              {Math.round(prefs.fontScale * 100)}%
+              {Math.round((fontDraft ?? prefs.fontScale) * 100)}%
             </span>
           </div>
         </SettingRow>
         <div className="px-0 pt-3 pb-3">
-          <div className="neu-inset rounded-2xl p-4">
+          {/* While dragging only the preview resizes (cheap); the app applies the size on release. */}
+          <div
+            className="neu-inset origin-top-left rounded-2xl p-4"
+            style={{ zoom: (fontDraft ?? prefs.fontScale) / prefs.fontScale }}
+          >
             <div className="text-xs text-muted">Preview</div>
             <div className="mt-1 font-semibold">What is the law of demand?</div>
             <div className="text-sm">As the price of a good rises, the quantity demanded falls.</div>
