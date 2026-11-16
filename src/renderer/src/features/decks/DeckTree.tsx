@@ -412,6 +412,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                   <button
                     type="button"
                     aria-label={`Study modes for ${d.name}`}
+                    data-usage="Study modes"
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex w-7 items-center justify-center rounded-r-xl press hover:brightness-110 active:brightness-95"
                   >
@@ -427,6 +428,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                 <button
                   type="button"
                   aria-label={`Actions for ${d.name}`}
+                  data-usage="Deck actions"
                   tabIndex={-1}
                   onClick={(e) => e.stopPropagation()}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full btn-quiet press active:neu-pressed"

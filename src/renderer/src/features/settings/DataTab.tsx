@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Cloud, DatabaseBackup, FolderOpen, FolderSync } from 'lucide-react'
 import { Button, Panel, Well, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
+import { UsagePanel } from './UsagePanel'
 
 export function DataTab(): React.JSX.Element {
   const startup = useApp((s) => s.startup)
@@ -83,6 +84,8 @@ export function DataTab(): React.JSX.Element {
           (.fdeck, includes images, with or without progress) and CSV (text only).
         </p>
       </Panel>
+
+      <UsagePanel />
     </div>
   )
 }

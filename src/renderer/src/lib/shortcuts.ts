@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useApp } from '@renderer/store/app'
+import { recordUsage } from '@renderer/lib/usage'
 
 export type ShortcutScope = 'global' | 'study' | 'creator' | 'decks' | 'browse'
 export interface Shortcut {
@@ -149,6 +150,7 @@ function onKeyDown(e: KeyboardEvent): void {
     // Plain-key shortcuts must not fire behind an open dialog (e.g. Escape, Space).
     if (dialogOpen && !opts.allowInInputs && !modified && !entry.id.startsWith('app.')) continue
     e.preventDefault()
+    recordUsage(`shortcut · ${SHORTCUTS[entry.id]?.label ?? entry.id}`)
     entry.handler.current(e)
     return
   }
