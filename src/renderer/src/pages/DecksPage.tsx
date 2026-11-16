@@ -1,5 +1,6 @@
 // Prop contract: no props. Reads decks from useApp().deckTree.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { hasLaunchFile, onLaunchFile, takeLaunchFile } from '@renderer/lib/launchFile'
 import { FileUp, Layers, Plus, Upload } from 'lucide-react'
 import type { DeckNode, Id } from '@shared/types'
 import { Button, EmptyState, Panel, toast } from '@renderer/components/ui'
@@ -35,6 +36,15 @@ export default function DecksPage(): React.JSX.Element {
     setNewOpen(true)
   }
   useShortcut('deck.new', () => openNew(null), { enabled: !newOpen })
+
+  // A .fdeck file opened from Windows: go straight to the import question.
+  useEffect(() => {
+    const ask = (): void => {
+      if (hasLaunchFile()) setImportAsk(true)
+    }
+    ask()
+    return onLaunchFile(ask)
+  }, [])
 
   const fail = (e: unknown, fallback: string): void => {
     toast(e instanceof Error ? e.message : fallback, { kind: 'error' })
@@ -101,7 +111,7 @@ export default function DecksPage(): React.JSX.Element {
             Import
           </Button>
           <Button icon={<FileUp size={16} />} onClick={() => setImportAsk(true)}>
-            Import .fdeck
+            Import deck file
           </Button>
           <Button variant="primary" icon={<Plus size={16} />} hotkey="N" onClick={() => openNew(null)}>
             New deck
@@ -143,9 +153,12 @@ export default function DecksPage(): React.JSX.Element {
       <MoveDeckDialog deck={moving} tree={tree} onClose={() => setMoving(null)} onMove={move} />
       <ProgressChoiceDialog
         open={importAsk}
-        title="Import .fdeck"
+        title="Import deck file"
         description="Include the scheduling progress stored in the file (due dates, memory strength), or import the cards as new?"
-        onClose={() => setImportAsk(false)}
+        onClose={() => {
+          takeLaunchFile()
+          setImportAsk(false)
+        }}
         onChoose={(p) => void doImport(p)}
       />
       <ExportDeckDialog deck={exportAsk} onClose={() => setExportAsk(null)} onExport={doExport} />

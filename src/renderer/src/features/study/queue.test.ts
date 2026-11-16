@@ -105,3 +105,14 @@ describe('queue', () => {
     expect(countdownLabel(185_000)).toBe('3m 05s')
   })
 })
+
+import { sessionProgress } from './queue'
+describe('sessionProgress', () => {
+  it('gives half credit to answered cards still in learning', () => {
+    const q = makeQueue([sc('a'), sc('b'), sc('c')])
+    expect(sessionProgress(4, q, new Set()).fraction).toBeCloseTo(0.25)
+    expect(sessionProgress(4, q, new Set(['a'])).fraction).toBeCloseTo(0.375)
+    expect(sessionProgress(4, q, new Set(['a'])).done).toBe(1)
+    expect(sessionProgress(0, [], new Set()).fraction).toBe(1)
+  })
+})

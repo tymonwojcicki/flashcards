@@ -31,6 +31,7 @@ import {
   makeQueue,
   pickNext,
   progressOf,
+  sessionProgress,
   pushFront,
   remainingCounts,
   removeById,
@@ -357,7 +358,11 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   const deckNode = findDeck(deckTree, deckId)
   const pathLabel = deckNode ? deckPathLabel(deckNode.path) : (cur ? deckPathLabel(cur.deckPath) : '')
   const remaining = remainingCounts(queue)
-  const progress = progressOf(total, queue.length)
+  const { fraction: progress, done: doneCount } = sessionProgress(
+    total,
+    queue,
+    new Set(history.current.map((h) => h.sc.card.id))
+  )
 
   const moreItems: MenuEntry[] = [
     { label: 'Edit card', icon: <Pencil size={16} />, hotkey: 'E', onSelect: () => setEditOpen(true), disabled: !cur },
@@ -406,8 +411,23 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
           items={moreItems}
         />
       </div>
-      <div className="neu-inset h-2 overflow-hidden rounded-full" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
-        <div className="accent-fill accent-glow h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${progress * 100}%` }} />
+      <div className="flex items-center gap-3">
+        <div
+          className="neu-inset h-2 flex-1 overflow-hidden rounded-full"
+          role="progressbar"
+          aria-label="Session progress"
+          aria-valuenow={Math.round(progress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="accent-fill accent-glow h-full rounded-full bg-accent transition-all duration-300"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </div>
+        <span className="font-mono shrink-0 text-xs text-muted tabular-nums" title="Cards finished this session">
+          {doneCount} / {total}
+        </span>
       </div>
     </header>
   )

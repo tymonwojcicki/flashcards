@@ -172,8 +172,8 @@ export function ProgressChoiceDialog(props: {
 type ExportFormat = 'fdeck' | 'csv'
 
 const FORMATS: { value: ExportFormat; label: string; hint: string }[] = [
-  { value: 'fdeck', label: 'Flashcards deck (.fdeck)', hint: 'For sharing or backup, includes images.' },
-  { value: 'csv', label: 'CSV', hint: 'For spreadsheets.' }
+  { value: 'fdeck', label: 'Deck file', hint: 'For sharing or backup. Includes images and sub-decks.' },
+  { value: 'csv', label: 'CSV', hint: 'For spreadsheets. Text only.' }
 ]
 
 export function ExportDeckDialog(props: {

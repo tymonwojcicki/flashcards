@@ -79,8 +79,8 @@ export function DataTab(): React.JSX.Element {
       <Panel className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Export</h3>
         <p className="text-sm text-muted">
-          To export, open a deck menu on the Decks screen and choose Export. Formats: .fdeck file
-          (with or without progress) and CSV.
+          To export, open a deck menu on the Decks screen and choose Export. Formats: deck file
+          (.fdeck, includes images, with or without progress) and CSV (text only).
         </p>
       </Panel>
     </div>

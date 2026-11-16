@@ -14,6 +14,6 @@
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "file_handlers": [
-    { "action": "./", "accept": { "application/zip": [".fdeck"], "text/csv": [".csv"] } }
+    { "action": "./", "accept": { "application/x-flashcards-deck": [".fdeck"] } }
   ]
 }

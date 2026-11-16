@@ -1,8 +1,21 @@
 // Web entry: choose storage, install window.api, then start the shared React app.
 import { WebBackend } from './backend'
+import { setLaunchFile } from '../renderer/src/lib/launchFile'
 import { BrowserStore, FolderStore, rememberFolder, savedFolder, type DataStore, type DirHandle } from './storage'
 
 const backend = new WebBackend()
+
+// Opening a .fdeck file from Windows (installed app only, Chrome/Edge): queue it for import.
+type LaunchParams = { files: { getFile(): Promise<File> }[] }
+const launchQueue = (window as unknown as { launchQueue?: { setConsumer(cb: (p: LaunchParams) => void): void } })
+  .launchQueue
+launchQueue?.setConsumer(async (p) => {
+  const h = p.files[0]
+  if (!h) return
+  const f = await h.getFile()
+  if (!/\.fdeck$/i.test(f.name)) return
+  setLaunchFile(f)
+})
 
 /** A minimal pre-React screen asking for one click to re-grant folder access (browser security rule). */
 function reconnectGate(handle: DirHandle): Promise<DataStore> {

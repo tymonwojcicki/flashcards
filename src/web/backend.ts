@@ -10,6 +10,7 @@ import { MEDIA_DIR, base64ToBytes, mediaNameFromUrl, saveMedia, type MediaPort }
 import type { Api, MainEvent, RendererApi } from '../shared/api'
 import { API_METHODS } from '../shared/api'
 import { DEFAULT_PREFS, type LockStatus, type Prefs, type StartupState } from '../shared/types'
+import { takeLaunchFile } from '../renderer/src/lib/launchFile'
 import { BrowserStore, FolderStore, pickFolder, rememberFolder, type DataStore } from './storage'
 
 // ---------------- collection ----------------
@@ -433,7 +434,7 @@ export class WebBackend {
         return `${name}.${format}`
       },
       importDeckFile: async (parentId, includeProgress) => {
-        const f = await pickFile('.fdeck,application/zip')
+        const f = takeLaunchFile() ?? (await pickFile('.fdeck,application/zip'))
         if (!f) return null
         return io.importFdeck(c(), new Uint8Array(await f.arrayBuffer()), parentId, includeProgress, port())
       },

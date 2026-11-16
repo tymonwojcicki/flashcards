@@ -84,6 +84,22 @@ export function remainingCounts(queue: QueueItem[]): Remaining {
 }
 
 /** 0..1 progress given the initial session size. */
+/**
+ * Session progress with partial credit: a card that has left the queue counts fully; a card that
+ * was answered at least once but is still in its learning steps counts half. Without the partial
+ * credit the bar would sit at 0% until the first new card finishes all of its learning steps.
+ */
+export function sessionProgress(
+  total: number,
+  queue: QueueItem[],
+  answeredIds: Set<string>
+): { fraction: number; done: number } {
+  if (total <= 0) return { fraction: 1, done: 0 }
+  const done = Math.max(0, total - queue.length)
+  const inProgress = queue.filter((q) => answeredIds.has(q.sc.card.id)).length
+  return { fraction: Math.max(0, Math.min(1, (done + inProgress * 0.5) / total)), done }
+}
+
 export function progressOf(total: number, queueLength: number): number {
   if (total <= 0) return 1
   return Math.max(0, Math.min(1, (total - queueLength) / total))
