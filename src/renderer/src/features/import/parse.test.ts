@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countDecks, detectDelimiter, dirName, guessHeader, guessRoles, mapRows, parseTable } from './parse'
+import { detectDelimiter, dirName, guessHeader, guessRoles, mapRows, parseTable } from './parse'
 
 describe('detectDelimiter', () => {
   it('detects comma', () => expect(detectDelimiter('a,b\nc,d\n')).toBe(','))
@@ -51,20 +51,18 @@ describe('mapRows', () => {
     ['', 'A2', '', ''],
     ['Q3', 'A3', '', '']
   ]
-  it('maps rows, splits tags, skips empty fronts', () => {
-    const { rows, skipped } = mapRows(table, true, ['front', 'back', 'deck', 'tags'])
-    expect(skipped).toBe(1)
-    expect(rows).toEqual([
+  it('maps rows, splits tags, keeps empty fronts for the import to skip', () => {
+    expect(mapRows(table, true, ['front', 'back', 'deck', 'tags'])).toEqual([
       { front: 'Q1', back: 'A1', deckPath: 'A::B', tags: ['x', 'y', 'z'] },
+      { front: '', back: 'A2' },
       { front: 'Q3', back: 'A3' }
     ])
-    expect(countDecks(rows)).toBe(2)
   })
   it('includes first row when no header', () => {
-    expect(mapRows([['a', 'b']], false, ['front', 'back']).rows).toHaveLength(1)
+    expect(mapRows([['a', 'b']], false, ['front', 'back'])).toHaveLength(1)
   })
   it('honours ignore', () => {
-    const { rows } = mapRows([['a', 'b', 'c']], false, ['front', 'ignore', 'back'])
+    const rows = mapRows([['a', 'b', 'c']], false, ['front', 'ignore', 'back'])
     expect(rows[0]).toEqual({ front: 'a', back: 'c' })
   })
 })

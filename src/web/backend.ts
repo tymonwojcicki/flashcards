@@ -459,6 +459,7 @@ export class WebBackend {
 
       getDeckTree: () => decks.getDeckTree(c()),
       createDeck: (n, p) => decks.createDeck(c(), n, p),
+      createDeckPath: (n, p) => decks.createDeckPath(c(), n, p),
       renameDeck: (id, n) => decks.renameDeck(c(), id, n),
       moveDeck: (id, p) => decks.moveDeck(c(), id, p),
       deleteDeck: (id) => decks.deleteDeck(c(), id),
@@ -501,7 +502,8 @@ export class WebBackend {
         if (!f) return null
         return { path: '', name: f.name, text: (await f.text()).replace(/^﻿/, '') }
       },
-      importRows: (rows, d) => io.importRows(c(), rows, d, port(), null),
+      previewImport: (rows, t) => io.previewImport(c(), rows, t),
+      importRows: (rows, t) => io.importRows(c(), rows, t, port(), null),
       exportDeck: async (deckId, format, includeProgress) => {
         const name = safeFileName(decks.getDeck(c(), deckId)?.name ?? 'deck')
         if (format === 'fdeck') download(`${name}.fdeck`, await io.exportFdeck(c(), deckId, includeProgress, port()), 'application/zip')

@@ -76,6 +76,36 @@ describe('decks', () => {
     expect(tree[0].children[0].children[0].id).toBe(leaf)
   })
 
+  it('splits deck paths by trimming parts and dropping empty ones', () => {
+    expect(decks.deckPathParts(' econ :: micro ::  ')).toEqual(['econ', 'micro'])
+    expect(decks.deckPathParts('::')).toEqual([])
+  })
+
+  it('createDeckPath reuses existing decks case-insensitively, trimming each part', () => {
+    const [micro] = decks.ensureDeckPath(col, 'Econ::Micro')
+    expect(decks.createDeckPath(col, 'econ :: micro', null)).toBe(micro)
+    const leaf = decks.createDeckPath(col, 'econ :: micro :: Supply', null)
+    expect(decks.deckPath(col, leaf)).toEqual(['Econ', 'Micro', 'Supply'])
+    expect(decks.allDecks(col)).toHaveLength(3)
+  })
+
+  it('createDeckPath creates the missing decks together, or none of them', () => {
+    col.run(`CREATE TRIGGER no_c BEFORE INSERT ON decks WHEN NEW.name = 'C' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+    expect(() => decks.createDeckPath(col, 'A::B::C', null)).toThrow()
+    expect(decks.allDecks(col)).toHaveLength(0)
+  })
+
+  it('createDeckPath under a parent expands collapsed ancestors', () => {
+    const [b] = decks.ensureDeckPath(col, 'A::B')
+    const a = decks.getDeck(col, b)!.parentId!
+    decks.setDeckCollapsed(col, a, true)
+    decks.setDeckCollapsed(col, b, true)
+    const c = decks.createDeckPath(col, 'C', b)
+    expect(decks.getDeck(col, c)!.parentId).toBe(b)
+    expect(decks.getDeck(col, a)!.collapsed).toBe(false)
+    expect(decks.getDeck(col, b)!.collapsed).toBe(false)
+  })
+
   it('aggregates counts up the tree and respects new-card limits', () => {
     const [leaf] = decks.ensureDeckPath(col, 'A::B')
     for (let i = 0; i < 30; i++) notes.createNote(col, { deckId: leaf, front: `q${i}`, back: 'a', tags: [], reverse: false })
@@ -377,7 +407,7 @@ describe('import / export', () => {
       null,
       port
     )
-    expect(r).toEqual({ notes: 2, cards: 2, decksCreated: 3, skipped: 1 })
+    expect(r).toMatchObject({ notes: 2, cards: 2, decksCreated: 3, skipped: 1 })
     const rows = notes.browse(col, { search: 'line1' }).rows
     expect(rows[0].front).toBe('a &lt; b')
     expect(rows[0].back).toBe('line1<br>line2')
@@ -387,6 +417,44 @@ describe('import / export', () => {
     const res = await io.importFdeck(col, bytes, null, false, port)
     expect(res.notes).toBe(1)
     expect(res.decksCreated).toBe(2)
+  })
+
+  it('import reuses "Econ::Micro" for "econ :: micro"', async () => {
+    const [micro] = decks.ensureDeckPath(col, 'Econ::Micro')
+    const r = await io.importRows(col, [{ front: 'q', back: 'a', deckPath: 'econ :: micro' }], null, memPort())
+    expect(r.decksCreated).toBe(0)
+    expect(notes.browse(col, { search: 'q' }).rows[0].deckId).toBe(micro)
+  })
+
+  it('preview counts equal the import result for the same rows', async () => {
+    decks.ensureDeckPath(col, 'Econ::Micro')
+    const [other] = decks.ensureDeckPath(col, 'Other')
+    const rows = [
+      { front: 'q1', back: 'a', deckPath: 'econ :: micro :: Demand' },
+      { front: 'q2', back: 'a', deckPath: 'Econ::Micro::demand' },
+      { front: 'q3', back: 'a', deckPath: 'Lang::Spanish' },
+      { front: 'q4', back: 'a', deckPath: 'lang' },
+      { front: '  ', back: 'skipped' },
+      { front: 'q5', back: 'a' }
+    ]
+    const targets = [null, { deckId: other }, { newDeck: 'Fresh::Deck' }, { newDeck: 'other' }]
+    for (const target of targets) {
+      const before = decks.allDecks(col).length
+      const preview = io.previewImport(col, rows, target)
+      expect(decks.allDecks(col)).toHaveLength(before) // preview writes nothing
+      const { deckId: _, ...res } = await io.importRows(col, rows, target, memPort())
+      expect(res).toEqual(preview)
+    }
+  })
+
+  it('preview counts the decks the import creates, including the target and intermediate decks', () => {
+    decks.ensureDeckPath(col, 'Econ')
+    const rows = [
+      { front: 'q1', back: 'a', deckPath: 'econ::Micro::Demand' },
+      { front: 'q2', back: 'a', deckPath: 'ECON :: micro' },
+      { front: '', back: 'a' }
+    ]
+    expect(io.previewImport(col, rows, { newDeck: 'New' })).toEqual({ notes: 2, cards: 2, decksCreated: 3, skipped: 1 })
   })
 })
 

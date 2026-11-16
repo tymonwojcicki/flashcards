@@ -1,5 +1,5 @@
 // Prop contract: { deckId?: string (default target deck) }
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { AlertTriangle, ArrowLeft, Check, FileText, FolderOpen, Layers, Upload } from 'lucide-react'
 import { Button, Field, Input, Panel, Select, Switch, Well, toastError } from '@renderer/components/ui'
@@ -10,7 +10,6 @@ import { plural } from '@renderer/lib/format'
 import { RichHtml } from '@renderer/lib/html'
 import {
   DELIMITERS,
-  countDecks,
   detectDelimiter,
   dirName,
   guessHeader,
@@ -19,7 +18,7 @@ import {
   parseTable
 } from '@renderer/features/import/parse'
 import type { ColumnRole } from '@renderer/features/import/parse'
-import type { ImportResult, PickedTextFile } from '@shared/types'
+import type { ImportResult, ImportTarget, PickedTextFile } from '@shared/types'
 
 const NEW_DECK = '__new__'
 
@@ -108,9 +107,26 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
 
   const table = useMemo(() => (file ? parseTable(file.text, delimiter) : []), [file, delimiter])
   const colCount = useMemo(() => table.reduce((m, r) => Math.max(m, r.length), 0), [table])
-  const { rows, skipped } = useMemo(() => mapRows(table, hasHeader, roles), [table, hasHeader, roles])
+  const rows = useMemo(() => mapRows(table, hasHeader, roles), [table, hasHeader, roles])
   const header = hasHeader ? (table[0] ?? null) : null
-  const deckCount = useMemo(() => countDecks(rows), [rows])
+  const importTarget = useMemo<ImportTarget>(
+    () => (target === NEW_DECK ? { newDeck: newDeckName } : { deckId: target }),
+    [target, newDeckName]
+  )
+  // Counts come from the backend, by the same rules the import uses.
+  const [preview, setPreview] = useState<ImportResult | null>(null)
+  useEffect(() => {
+    let live = true
+    if (importTarget && 'newDeck' in importTarget && !importTarget.newDeck.trim()) setPreview(null)
+    else
+      window.api.previewImport(rows, importTarget).then(
+        (p) => live && setPreview(p),
+        () => live && setPreview(null)
+      )
+    return () => {
+      live = false
+    }
+  }, [rows, importTarget, deckTree])
 
   const loadFile = useCallback((f: PickedTextFile) => {
     const d = detectDelimiter(f.text)
@@ -170,23 +186,16 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
 
   const hasFront = roles.includes('front')
   const needsNewName = target === NEW_DECK
-  const canImport =
-    !busy && rows.length > 0 && hasFront && (!needsNewName || newDeckName.trim().length > 0)
+  const cards = preview?.notes ?? 0
+  const canImport = !busy && cards > 0 && hasFront && (!needsNewName || newDeckName.trim().length > 0)
 
   const doImport = async (): Promise<void> => {
     if (!file || !canImport) return
     setBusy(true)
     try {
-      let defaultId = target
-      let created = 0
-      if (needsNewName) {
-        const d = await window.api.createDeck(newDeckName.trim(), null)
-        defaultId = d.id
-        created = 1
-      }
-      const res = await window.api.importRows(rows, defaultId, dirName(file.path))
+      const res = await window.api.importRows(rows, importTarget, dirName(file.path))
       await refreshDecks()
-      setResult({ res: { ...res, decksCreated: res.decksCreated + created }, deckId: defaultId })
+      setResult({ res, deckId: res.deckId ?? target })
       setStep(2)
       playSound('import')
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setBurst(true)
@@ -377,12 +386,15 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
                 <AlertTriangle size={16} /> Choose one column as Front to continue.
               </p>
             )}
-            <p className="text-sm font-semibold">
-              {plural(rows.length, 'card')} will be imported into {plural(deckCount, 'deck')}
-            </p>
-            {skipped > 0 && (
+            {preview && (
+              <p className="text-sm font-semibold">
+                {plural(preview.notes, 'card')} will be imported
+                {preview.decksCreated > 0 && `, creating ${plural(preview.decksCreated, 'new deck')}`}
+              </p>
+            )}
+            {!!preview?.skipped && (
               <p className="flex items-center gap-2 text-sm text-warning">
-                <AlertTriangle size={16} /> {plural(skipped, 'row')} with an empty front will be skipped.
+                <AlertTriangle size={16} /> {plural(preview.skipped, 'row')} with an empty front will be skipped.
               </p>
             )}
           </Panel>
@@ -413,7 +425,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
               Choose another file
             </Button>
             <Button variant="primary" size="lg" disabled={!canImport} onClick={() => void doImport()}>
-              {busy ? 'Importing…' : `Import ${plural(rows.length, 'card')}`}
+              {busy ? 'Importing…' : `Import ${plural(cards, 'card')}`}
             </Button>
           </div>
         </>

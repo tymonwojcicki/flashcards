@@ -2,8 +2,8 @@
 import JSZip from 'jszip'
 import type { BaseCollection as Collection } from '../db/core'
 import { newId, placeholders } from '../db/core'
-import type { Id, ImportResult, ImportRow } from '../../shared/types'
-import { createDeck, ensureDeckPath, getDeck, subtreeIds } from './decks'
+import type { Id, ImportResult, ImportRow, ImportTarget } from '../../shared/types'
+import { createDeck, deckPathPlanner, ensureDeckPath, getDeck, subtreeIds } from './decks'
 import { createNote, encodeTags, decodeTags, insertCard } from './notes'
 import { base64ToBytes, referencedMedia, saveMedia, type MediaPort } from './mediaCore'
 
@@ -49,15 +49,55 @@ export function cellToHtml(s: string): string {
     .replace(/\r?\n/g, '<br>')
 }
 
+/**
+ * The import rules, shared by importRows and previewImport: rows with an empty front are skipped,
+ * a row's deck path wins, other rows go to the target (or "Imported" when there is none).
+ * `resolve` turns a deck path into [deck, decksCreated]; `add` stores one row.
+ * Returns the result and the deck that rows without a deck path went to.
+ */
+function walkRows<D>(
+  rows: ImportRow[],
+  target: ImportTarget,
+  resolve: (path: string) => [D, number],
+  add: (row: ImportRow, deck: D) => void
+): [ImportResult, D | undefined] {
+  const res: ImportResult = { notes: 0, cards: 0, decksCreated: 0, skipped: 0 }
+  const use = (path: string): D => {
+    const [deck, created] = resolve(path)
+    res.decksCreated += created
+    return deck
+  }
+  let fallback: D | undefined
+  if (target && 'newDeck' in target) fallback = use(target.newDeck)
+  else if (target) fallback = target.deckId as D
+  for (const r of rows) {
+    if (!r.front?.trim()) {
+      res.skipped++
+      continue
+    }
+    const deck = r.deckPath?.trim() ? use(r.deckPath) : (fallback ??= use('Imported'))
+    add(r, deck)
+    res.notes++
+    res.cards++
+  }
+  return [res, fallback]
+}
+
+/** What importRows would do with these rows, without writing anything. */
+export function previewImport(col: Collection, rows: ImportRow[], target: ImportTarget): ImportResult {
+  const plan = deckPathPlanner(col)
+  return walkRows(rows, target, (path) => [null, plan(path)], () => {})[0]
+}
+
 export async function importRows(
   col: Collection,
   rows: ImportRow[],
-  defaultDeckId: Id | null,
+  target: ImportTarget,
   port: MediaPort,
   resolveImage: ImageResolver | null = null
 ): Promise<ImportResult> {
   // Async image work first, then a single synchronous transaction.
-  const prepared: { front: string; back: string; deckPath?: string; tags?: string[] }[] = []
+  const prepared: ImportRow[] = []
   for (const r of rows) {
     const front = r.front?.trim() ?? ''
     prepared.push({
@@ -66,31 +106,15 @@ export async function importRows(
       back: await importImages(cellToHtml(r.back ?? ''), port, resolveImage)
     })
   }
-  const res: ImportResult = { notes: 0, cards: 0, decksCreated: 0, skipped: 0 }
-  col.tx(() => {
-    let fallback = defaultDeckId
-    for (const r of prepared) {
-      if (!r.front) {
-        res.skipped++
-        continue
-      }
-      let deckId = fallback
-      if (r.deckPath?.trim()) {
-        const [id, created] = ensureDeckPath(col, r.deckPath)
-        deckId = id
-        res.decksCreated += created
-      }
-      if (!deckId) {
-        const [id, created] = ensureDeckPath(col, 'Imported')
-        fallback = deckId = id
-        res.decksCreated += created
-      }
-      createNote(col, { deckId, front: r.front, back: r.back, tags: r.tags ?? [], reverse: false })
-      res.notes++
-      res.cards++
-    }
+  return col.tx(() => {
+    const [res, deckId] = walkRows<Id>(
+      prepared,
+      target,
+      (path) => ensureDeckPath(col, path),
+      (r, d) => void createNote(col, { deckId: d, front: r.front, back: r.back, tags: r.tags ?? [], reverse: false })
+    )
+    return deckId ? { ...res, deckId } : res
   })
-  return res
 }
 
 // ---------------- .fdeck (zip) ----------------

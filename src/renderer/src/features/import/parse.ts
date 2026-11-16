@@ -107,26 +107,18 @@ export function splitTags(s: string): string[] {
     .filter(Boolean)
 }
 
-export interface MappedRows {
-  rows: ImportRow[]
-  /** Rows dropped because the front is empty. */
-  skipped: number
-}
-
-/** Map table rows into ImportRow[] using column roles (first column per role wins). */
-export function mapRows(table: string[][], hasHeader: boolean, roles: ColumnRole[]): MappedRows {
+/**
+ * Map table rows into ImportRow[] using column roles (first column per role wins).
+ * Rows with an empty front are kept: the import (and its preview) decides what is skipped.
+ */
+export function mapRows(table: string[][], hasHeader: boolean, roles: ColumnRole[]): ImportRow[] {
   const fi = roles.indexOf('front')
   const bi = roles.indexOf('back')
   const di = roles.indexOf('deck')
   const ti = roles.indexOf('tags')
   const rows: ImportRow[] = []
-  let skipped = 0
   for (const r of hasHeader ? table.slice(1) : table) {
     const front = fi >= 0 ? (r[fi] ?? '').trim() : ''
-    if (!front) {
-      skipped++
-      continue
-    }
     const row: ImportRow = { front, back: bi >= 0 ? (r[bi] ?? '').trim() : '' }
     const deck = di >= 0 ? (r[di] ?? '').trim() : ''
     if (deck) row.deckPath = deck
@@ -134,18 +126,7 @@ export function mapRows(table: string[][], hasHeader: boolean, roles: ColumnRole
     if (tags.length) row.tags = tags
     rows.push(row)
   }
-  return { rows, skipped }
-}
-
-/** Number of distinct target decks (rows without a deck go to the default deck). */
-export function countDecks(rows: ImportRow[]): number {
-  const set = new Set<string>()
-  let usesDefault = false
-  for (const r of rows) {
-    if (r.deckPath) set.add(r.deckPath)
-    else usesDefault = true
-  }
-  return set.size + (usesDefault ? 1 : 0)
+  return rows
 }
 
 /** Directory of a file path (handles / and backslash); null when unknown. */

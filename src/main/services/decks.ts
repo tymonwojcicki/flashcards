@@ -138,27 +138,80 @@ export function createDeck(col: Collection, name: string, parentId: Id | null): 
   return getDeck(col, id)!
 }
 
-/** "A::B::C" -> deck id, creating missing decks. Returns [id, createdCount]. */
-export function ensureDeckPath(col: Collection, pathStr: string, rootParent: Id | null = null): [Id, number] {
-  const parts = pathStr
+/** The deck-path rule: "A :: B::C" -> ["A", "B", "C"]. Parts are trimmed; empty parts are dropped. */
+export function deckPathParts(pathStr: string): string[] {
+  return pathStr
     .split('::')
     .map((s) => s.trim())
     .filter(Boolean)
+}
+
+/** SQLite's NOCASE: folds ASCII letters only. */
+const nocase = (s: string): string => s.replace(/[A-Z]/g, (c) => c.toLowerCase())
+
+const findChild = (col: Collection, parent: Id | null, name: string): Id | undefined =>
+  col.get<{ id: string }>(
+    `SELECT id FROM decks WHERE name = ? COLLATE NOCASE AND ${parent ? 'parent_id = ?' : 'parent_id IS NULL'}`,
+    parent ? [name, parent] : [name]
+  )?.id
+
+/** "A::B::C" -> deck id, creating missing decks. Existing decks match case-insensitively. Returns [id, createdCount]. */
+export function ensureDeckPath(col: Collection, pathStr: string, rootParent: Id | null = null): [Id, number] {
+  const parts = deckPathParts(pathStr)
   if (!parts.length) throw new Error('Empty deck path')
   let parent = rootParent
   let created = 0
   for (const name of parts) {
-    const existing = col.get<{ id: string }>(
-      `SELECT id FROM decks WHERE name = ? COLLATE NOCASE AND ${parent ? 'parent_id = ?' : 'parent_id IS NULL'}`,
-      parent ? [name, parent] : [name]
-    )
-    if (existing) parent = existing.id
+    const existing = findChild(col, parent, name)
+    if (existing) parent = existing
     else {
       parent = createDeck(col, name, parent).id
       created++
     }
   }
   return [parent!, created]
+}
+
+/**
+ * Dry run of ensureDeckPath from the top level: returns a function that says how many decks a
+ * path would create, remembering the paths it has already counted. Reads only.
+ */
+export function deckPathPlanner(col: Collection): (pathStr: string) => number {
+  const planned = new Set<string>()
+  return (pathStr) => {
+    const parts = deckPathParts(pathStr)
+    if (!parts.length) throw new Error('Empty deck path')
+    let parent: Id | null = null
+    let missing = false
+    let created = 0
+    parts.forEach((name, i) => {
+      const existing = missing ? undefined : findChild(col, parent, name)
+      if (existing) return void (parent = existing)
+      missing = true // below a missing deck everything is new
+      const key = parts.slice(0, i + 1).map(nocase).join('::')
+      if (!planned.has(key)) {
+        planned.add(key)
+        created++
+      }
+    })
+    return created
+  }
+}
+
+/**
+ * Create a deck path ("A::B::C") under `parentId` in one transaction: all missing decks or none.
+ * Expands collapsed ancestors so the deepest deck is visible. Returns its id.
+ */
+export function createDeckPath(col: Collection, pathStr: string, parentId: Id | null): Id {
+  return col.tx(() => {
+    const [id] = ensureDeckPath(col, pathStr, parentId)
+    for (let cur = getDeck(col, id)?.parentId; cur; ) {
+      const d = getDeck(col, cur)
+      if (d?.collapsed) setDeckCollapsed(col, d.id, false)
+      cur = d?.parentId
+    }
+    return id
+  })
 }
 
 export function renameDeck(col: Collection, id: Id, name: string): void {

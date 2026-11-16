@@ -10,6 +10,7 @@ import type {
   Id,
   ImportResult,
   ImportRow,
+  ImportTarget,
   IntervalPreview,
   Note,
   PickedTextFile,
@@ -62,6 +63,8 @@ export interface Api {
   // ---- decks ----
   getDeckTree(): DeckNode[]
   createDeck(name: string, parentId: Id | null): Deck
+  /** Creates the missing decks of a path like "A::B::C" together (or none). Returns the deepest deck's id. */
+  createDeckPath(path: string, parentId: Id | null): Id
   renameDeck(id: Id, name: string): void
   moveDeck(id: Id, newParentId: Id | null): void
   /** Moves the deck to the Trash. Returns the trash id (pass to restoreTrash to undo). */
@@ -106,7 +109,9 @@ export interface Api {
 
   // ---- import / export ----
   pickTextFile(): PickedTextFile | null
-  importRows(rows: ImportRow[], defaultDeckId: Id | null, baseDir: string | null): ImportResult
+  /** What importRows would create for these rows, without writing. */
+  previewImport(rows: ImportRow[], target: ImportTarget): ImportResult
+  importRows(rows: ImportRow[], target: ImportTarget, baseDir: string | null): ImportResult
   exportDeck(deckId: Id, format: 'fdeck' | 'csv', includeProgress: boolean): string | null
   importDeckFile(parentId: Id | null, includeProgress: boolean): ImportResult | null
 
@@ -121,12 +126,12 @@ export const API_METHODS = [
   'getStartupState', 'forceUnlock', 'openReadOnly', 'resolveConflict', 'chooseDataDir', 'openDataDir', 'backupNow', 'runAutoBackup', 'getAutoBackup', 'setAutoBackup', 'pickBackup', 'restoreBackup',
   'listTrash', 'restoreTrash', 'deleteTrashForever', 'emptyTrash',
   'getPrefs', 'setPrefs', 'getCollectionSettings', 'setCollectionSettings',
-  'getDeckTree', 'createDeck', 'renameDeck', 'moveDeck', 'deleteDeck', 'setDeckCollapsed', 'setDeckPreset', 'getDeckPreset',
+  'getDeckTree', 'createDeck', 'createDeckPath', 'renameDeck', 'moveDeck', 'deleteDeck', 'setDeckCollapsed', 'setDeckPreset', 'getDeckPreset',
   'listPresets', 'createPreset', 'updatePreset', 'deletePreset',
   'createNote', 'updateNote', 'getNote', 'deleteNotes', 'moveNotes', 'setSuspended', 'addTags', 'resetCards', 'browse', 'listTags',
   'getSession', 'answer', 'previewIntervals', 'undo', 'buryCard',
   'saveMedia', 'pickImage',
-  'pickTextFile', 'importRows', 'exportDeck', 'importDeckFile',
+  'pickTextFile', 'previewImport', 'importRows', 'exportDeck', 'importDeckFile',
   'getStats'
 ] as const satisfies readonly ApiMethod[]
 

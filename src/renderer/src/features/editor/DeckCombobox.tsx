@@ -6,33 +6,6 @@ import { toastError } from '@renderer/components/ui'
 import { flattenDecks } from '@renderer/lib/decks'
 import { deckPathLabel } from '@renderer/lib/format'
 
-/** Create (or reuse) a deck from a "A::B::C" path. Returns the id of the deepest deck. */
-export async function ensureDeckPath(path: string): Promise<Id | null> {
-  const parts = path
-    .split('::')
-    .map((p) => p.trim())
-    .filter(Boolean)
-  if (parts.length === 0) return null
-  const tree = await window.api.getDeckTree()
-  let siblings: DeckNode[] = tree
-  let parentId: Id | null = null
-  let lastId: Id | null = null
-  for (const name of parts) {
-    const existing: DeckNode | undefined = siblings.find((d) => d.name.toLowerCase() === name.toLowerCase())
-    if (existing) {
-      lastId = existing.id
-      parentId = existing.id
-      siblings = existing.children
-    } else {
-      const created = await window.api.createDeck(name, parentId)
-      lastId = created.id
-      parentId = created.id
-      siblings = []
-    }
-  }
-  return lastId
-}
-
 export interface DeckComboboxProps {
   tree: DeckNode[]
   value: Id | null
@@ -122,13 +95,10 @@ export function DeckCombobox({
 
   async function create(path: string): Promise<void> {
     try {
-      const id = await ensureDeckPath(path)
-      if (id) {
-        onChange(id)
-        onCreated?.()
-        close()
-        onDone?.()
-      }
+      onChange(await window.api.createDeckPath(path, null))
+      onCreated?.()
+      close()
+      onDone?.()
     } catch (e) {
       toastError(e, 'Could not create deck')
     }

@@ -220,7 +220,12 @@ export interface ImportResult {
   cards: number
   decksCreated: number
   skipped: number
+  /** CSV import: the deck that rows without a deck path went to. */
+  deckId?: Id
 }
+
+/** Where CSV rows without a deck path go: an existing deck, a new deck path, or null for "Imported". */
+export type ImportTarget = { deckId: Id } | { newDeck: string } | null
 
 export interface PickedTextFile {
   path: string

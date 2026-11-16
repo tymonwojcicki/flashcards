@@ -84,6 +84,7 @@ const handlers: Handlers = {
   // decks
   getDeckTree: () => decks.getDeckTree(c()),
   createDeck: (name, parentId) => decks.createDeck(c(), name, parentId),
+  createDeckPath: (p, parentId) => decks.createDeckPath(c(), p, parentId),
   renameDeck: (id, name) => decks.renameDeck(c(), id, name),
   moveDeck: (id, parent) => decks.moveDeck(c(), id, parent),
   deleteDeck: (id) => decks.deleteDeck(c(), id),
@@ -137,8 +138,9 @@ const handlers: Handlers = {
     const p = r.filePaths[0]
     return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8').replace(/^﻿/, '') }
   },
-  importRows: (rows, deckId, baseDir) =>
-    io.importRows(c(), rows, deckId, nodeMediaPort(c().dir), baseDir ? (src) => saveCsvImage(c().dir, baseDir, src) : null),
+  previewImport: (rows, target) => io.previewImport(c(), rows, target),
+  importRows: (rows, target, baseDir) =>
+    io.importRows(c(), rows, target, nodeMediaPort(c().dir), baseDir ? (src) => saveCsvImage(c().dir, baseDir, src) : null),
   exportDeck: async (deckId, format, includeProgress) => {
     const name = safeFileName(decks.getDeck(c(), deckId)?.name ?? 'deck')
     const r = await dialog.showSaveDialog(win(), {

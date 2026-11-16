@@ -9,7 +9,6 @@ import { useEffectiveKeys, useShortcut } from '@renderer/lib/shortcuts'
 import { plural } from '@renderer/lib/format'
 import { DeckTree } from '@renderer/features/decks/DeckTree'
 import { ExportDeckDialog, MoveDeckDialog, NewDeckDialog, ProgressChoiceDialog } from '@renderer/features/decks/DeckDialogs'
-import { createDeckPath } from '@renderer/features/decks/actions'
 
 export default function DecksPage(): React.JSX.Element {
   const tree = useApp((s) => s.deckTree)
@@ -53,10 +52,10 @@ export default function DecksPage(): React.JSX.Element {
 
   const create = async (name: string, parentId: Id | null): Promise<void> => {
     try {
-      const id = await createDeckPath(useApp.getState().deckTree, name, parentId)
+      const id = await window.api.createDeckPath(name, parentId)
       await refreshDecks()
       setNewOpen(false)
-      if (id) setFocusId(id)
+      setFocusId(id)
       toast('Deck created', { kind: 'success' })
     } catch (e) {
       fail(e, 'Could not create deck')
