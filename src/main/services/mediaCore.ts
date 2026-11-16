@@ -34,9 +34,13 @@ export async function saveMedia(port: MediaPort, bytes: Uint8Array, ext: string)
 
 /** "media://abc.png" (optionally with trailing slash) -> "abc.png", or null if invalid. */
 export function mediaNameFromUrl(nameOrUrl: string): string | null {
-  const raw = decodeURIComponent(nameOrUrl.replace(/^media:\/\//, '').replace(/\/$/, ''))
-  const name = raw.split(/[\\/]/).pop() ?? ''
-  return NAME_RE.test(name) ? name : null
+  let name: string
+  try {
+    name = decodeURIComponent(nameOrUrl.replace(/^media:\/\//, '').replace(/\/$/, ''))
+  } catch {
+    return null // malformed %-escape
+  }
+  return NAME_RE.test(name) && ALLOWED.has(name.split('.')[1]) ? name : null
 }
 
 /** All media filenames referenced by some HTML. */
