@@ -1,21 +1,30 @@
 import { useLayoutEffect, useRef } from 'react'
 import katex from 'katex'
+import DOMPurify from 'dompurify'
 import clsx from 'clsx'
 
-/** Strip scripts, embedded objects, inline event handlers and javascript: URLs. */
+// Card HTML can come from other people (shared .fdeck / CSV files), so it is treated as untrusted.
+// DOMPurify removes scripts, event handlers, forms, iframes, javascript: URLs etc. In addition,
+// images may only come from the app itself (media:, blob:, data:) — no remote URLs, so a shared
+// deck cannot "phone home" (tracking pixels) when you look at a card. <style> is dropped too.
+const SAFE_IMG_SRC = /^(media:|blob:|data:image\/)/i
+
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+  if (data.attrName === 'src' && !SAFE_IMG_SRC.test(data.attrValue)) data.keepAttr = false
+  if (data.attrName === 'srcset' || data.attrName === 'style' && /url\s*\(/i.test(data.attrValue)) data.keepAttr = false
+  if (data.attrName === 'href') {
+    // Links may only open web pages, in the external browser.
+    if (!/^https?:\/\//i.test(data.attrValue)) data.keepAttr = false
+    else node.setAttribute('target', '_blank')
+  }
+})
+
 export function sanitizeHtml(html: string): string {
-  const tpl = document.createElement('template')
-  tpl.innerHTML = html
-  tpl.content.querySelectorAll('script, iframe, object, embed, link, meta, base').forEach((el) => el.remove())
-  tpl.content.querySelectorAll('*').forEach((el) => {
-    for (const attr of Array.from(el.attributes)) {
-      const name = attr.name.toLowerCase()
-      if (name.startsWith('on')) el.removeAttribute(attr.name)
-      else if ((name === 'href' || name === 'src' || name === 'xlink:href') && /^\s*javascript:/i.test(attr.value))
-        el.removeAttribute(attr.name)
-    }
+  return DOMPurify.sanitize(html, {
+    FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select', 'iframe', 'object', 'embed', 'link', 'meta', 'base'],
+    ADD_ATTR: ['target', 'data-math', 'latex'],
+    ALLOWED_URI_REGEXP: /^(?:https?:|media:|blob:|data:image\/)/i
   })
-  return tpl.innerHTML
 }
 
 function renderTex(el: HTMLElement, tex: string, display: boolean): void {

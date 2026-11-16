@@ -21,7 +21,7 @@ function createWindow(): void {
     title: 'Flashcards',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true
     }
   })
@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: media: https:; font-src 'self' data:; connect-src 'self' media:"
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: media:; font-src 'self' data:; connect-src 'self' media:; object-src 'none'; base-uri 'none'; form-action 'none'"
           ]
         }
       })
