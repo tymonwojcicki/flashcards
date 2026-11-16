@@ -16,13 +16,23 @@ const PAGE = 200
 const COLS =
   'grid-cols-[minmax(0,1fr)_5.75rem_4.5rem_5.25rem] @4xl:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_5.75rem_5rem_5.25rem]'
 
+// Dot colours match the state badges in the table.
+function StateLabel({ dot, text }: { dot?: string; text: string }): React.JSX.Element {
+  return (
+    <span className="inline-flex items-center gap-2">
+      {dot && <span aria-hidden="true" className={clsx('inline-block size-2 shrink-0 rounded-full', dot)} />}
+      {text}
+    </span>
+  )
+}
+
 const STATE_OPTIONS = [
-  { value: 'all', label: 'All states' },
-  { value: 'new', label: 'New' },
-  { value: 'learning', label: 'Learning' },
-  { value: 'review', label: 'Review' },
-  { value: 'due', label: 'Due' },
-  { value: 'suspended', label: 'Suspended' }
+  { value: 'all', label: <StateLabel text="All states" /> },
+  { value: 'new', label: <StateLabel dot="bg-easy" text="New" /> },
+  { value: 'learning', label: <StateLabel dot="bg-hard" text="Learning" /> },
+  { value: 'review', label: <StateLabel dot="bg-good" text="Review" /> },
+  { value: 'due', label: <StateLabel dot="bg-again" text="Due" /> },
+  { value: 'suspended', label: <StateLabel dot="bg-muted" text="Suspended" /> }
 ]
 
 function stateQuery(v: string): BrowseQuery['state'] {
@@ -115,8 +125,14 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
   }, [searchText])
 
   const loadTags = useCallback(() => {
-    window.api.listTags().then(setAllTags, () => {})
-  }, [])
+    window.api.listTags(deckId).then(
+      (list) => {
+        setAllTags(list)
+        setTag((t) => (t === 'all' || list.includes(t) ? t : 'all'))
+      },
+      () => {}
+    )
+  }, [deckId])
   useEffect(loadTags, [loadTags])
 
   const query = useMemo<BrowseQuery>(
@@ -437,7 +453,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
             aria-multiselectable="true"
             aria-label="Cards"
             onKeyDown={onListKeyDown}
-            className="min-h-0 flex-1 overflow-y-auto outline-none"
+            className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:shadow-[inset_0_0_0_2px_color-mix(in_srgb,var(--accent)_55%,transparent)]"
           >
             {rows.length === 0 && !loading && (
               <EmptyState

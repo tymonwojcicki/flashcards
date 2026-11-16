@@ -72,7 +72,7 @@ export interface Api {
   addTags(noteIds: Id[], tags: string[]): void
   resetCards(cardIds: Id[]): void
   browse(q: BrowseQuery): { rows: BrowseRow[]; total: number }
-  listTags(): string[]
+  listTags(deckId?: Id | null): string[]
 
   // ---- study ----
   getSession(deckId: Id, mode: StudyMode): StudySession

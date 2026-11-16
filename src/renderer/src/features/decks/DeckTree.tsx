@@ -66,6 +66,12 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   const [dragId, setDragId] = useState<Id | null>(null)
   const [dropId, setDropId] = useState<Id | 'top' | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const cancelRef = useRef(false)
+  const renamingRef = useRef(false)
+  const keepFocusRef = useRef(false)
+  const keepRenameFocus = (e: Event): void => {
+    if (keepFocusRef.current || renamingRef.current) e.preventDefault()
+  }
 
   // Server state caught up: drop optimistic overrides.
   useEffect(() => setOverride({}), [tree])
@@ -118,11 +124,26 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   }
 
   const startRename = (d: DeckNode): void => {
+    cancelRef.current = false
+    keepFocusRef.current = true
+    renamingRef.current = true
     setRenaming(d.id)
     setRenameText(d.name)
+    // Menus hand focus back to their trigger when they close; take it back once that has happened.
+    setTimeout(() => {
+      const el = containerRef.current?.querySelector<HTMLInputElement>('input[data-rename]')
+      el?.focus()
+      el?.select()
+      keepFocusRef.current = false
+    }, 250)
   }
 
   const commitRename = async (d: DeckNode): Promise<void> => {
+    renamingRef.current = false
+    if (cancelRef.current) {
+      cancelRef.current = false
+      return
+    }
     const name = renameText.trim()
     setRenaming(null)
     focusRow(d.id)
@@ -170,7 +191,9 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
 
   const manageItems = (d: DeckNode): MenuEntry[] => [
     { label: 'Browse cards', icon: <Search size={16} />, onSelect: () => navigate({ name: 'browse', deckId: d.id }) },
+    { label: 'Add cards', icon: <Plus size={16} />, onSelect: () => navigate({ name: 'add', deckId: d.id }) },
     { label: 'Add sub-deck', icon: <FolderPlus size={16} />, onSelect: () => onAddSub(d) },
+    { type: 'separator' },
     { label: 'Rename', icon: <Pencil size={16} />, hotkey: 'F2', onSelect: () => startRename(d) },
     { label: 'Move to…', icon: <FolderInput size={16} />, onSelect: () => onMove(d) },
     {
@@ -178,6 +201,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
       icon: <Settings2 size={16} />,
       onSelect: () => navigate({ name: 'settings', tab: 'scheduling', deckId: d.id })
     },
+    { type: 'separator' },
     { label: 'Export…', icon: <Download size={16} />, onSelect: () => onExport(d) },
     { type: 'separator' },
     { label: 'Delete', icon: <Trash2 size={16} />, danger: true, onSelect: () => void remove(d) }
@@ -261,7 +285,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
       : 'pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100'
     return (
       <div key={d.id} role="none" className="anim-row" style={{ '--i': index } as React.CSSProperties}>
-        <ContextMenu items={manageItems(d)}>
+        <ContextMenu items={manageItems(d)} onCloseAutoFocus={keepRenameFocus}>
           <div
             role="treeitem"
             aria-level={level + 1}
@@ -332,11 +356,15 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
             {isRenaming ? (
               <Input
                 autoFocus
+                data-rename=""
                 value={renameText}
                 className="h-8 max-w-sm flex-1"
                 onChange={(e) => setRenameText(e.target.value)}
                 onFocus={(e) => e.currentTarget.select()}
-                onBlur={() => void commitRename(d)}
+                onBlur={() => {
+                  if (keepFocusRef.current) return // focus is still being handed over from the menu
+                  void commitRename(d)
+                }}
                 onKeyDown={(e) => {
                   e.stopPropagation()
                   if (e.key === 'Enter') {
@@ -344,6 +372,8 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                     e.currentTarget.blur()
                   } else if (e.key === 'Escape') {
                     e.preventDefault()
+                    cancelRef.current = true
+                    renamingRef.current = false
                     setRenameText(d.name)
                     setRenaming(null)
                     focusRow(d.id)
@@ -379,7 +409,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                 navigate({ name: 'add', deckId: d.id })
               }}
               className={clsx(
-                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-bold whitespace-nowrap btn-ghost btn-shine press active:neu-pressed',
+                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl pr-2.5 pl-2 text-xs font-bold whitespace-nowrap btn-ghost btn-shine press active:neu-pressed',
                 reveal
               )}
             >
@@ -389,7 +419,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
 
             <div
               className={clsx(
-                'neu-accent inline-flex h-8 shrink-0 items-stretch rounded-xl bg-accent text-accent-contrast transition-all duration-150',
+                'neu-accent btn-invite inline-flex h-8 shrink-0 items-stretch rounded-xl bg-accent text-accent-contrast',
                 reveal
               )}
             >
@@ -437,6 +467,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                 </button>
               }
               items={manageItems(d)}
+              onCloseAutoFocus={keepRenameFocus}
             />
           </div>
         </ContextMenu>

@@ -101,6 +101,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
   const [newDeckName, setNewDeckName] = useState('')
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [burst, setBurst] = useState(false)
   const [result, setResult] = useState<{ res: ImportResult; deckId: string } | null>(null)
 
   const table = useMemo(() => (file ? parseTable(file.text, delimiter) : []), [file, delimiter])
@@ -185,6 +186,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
       await refreshDecks()
       setResult({ res: { ...res, decksCreated: res.decksCreated + created }, deckId: defaultId })
       setStep(2)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setBurst(true)
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Import failed', { kind: 'error' })
     } finally {
@@ -203,10 +205,21 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
     { value: NEW_DECK, label: 'Create new deck…' }
   ]
 
-  const preview = rows.slice(0, 5)
+  const previewRows = (hasHeader ? table.slice(1) : table).slice(0, 5)
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      {burst && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center">
+          <div className="anim-burst absolute inset-0 bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--accent)_38%,transparent)_0%,color-mix(in_srgb,var(--accent)_12%,transparent)_40%,transparent_70%)]" />
+          <div
+            className="anim-burst-icon neu-raised relative flex h-36 w-36 items-center justify-center rounded-full text-success"
+            onAnimationEnd={() => setBurst(false)}
+          >
+            <Check size={72} strokeWidth={2.5} />
+          </div>
+        </div>
+      )}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Import cards</h1>
         <Stepper step={step} />
@@ -271,27 +284,79 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
             </label>
           </Panel>
 
-          <Panel className="flex flex-col gap-4">
-            <h2 className="text-base font-semibold">Map columns</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: colCount }, (_, i) => (
-                <div key={i} className="flex flex-col gap-1.5">
-                  <span className="truncate text-xs text-muted">
-                    Column {i + 1}
-                    {header?.[i] ? `: ${header[i]}` : ''} · e.g. “{(table[hasHeader ? 1 : 0]?.[i] ?? '').slice(0, 24)}”
-                  </span>
-                  <Select
-                    aria-label={`Column ${i + 1} role`}
-                    value={roles[i] ?? 'ignore'}
-                    onValueChange={(v) => setRole(i, v as ColumnRole)}
-                    options={ROLE_OPTIONS}
-                  />
-                </div>
-              ))}
-            </div>
+          <Panel className="flex flex-col gap-3">
+            <h2 className="text-base font-semibold">Columns and preview</h2>
+            <p className="text-sm text-muted">Choose what each column contains using the menus in the header.</p>
+            <Well className="overflow-x-auto p-0">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="align-bottom">
+                    {Array.from({ length: colCount }, (_, i) => {
+                      const role = roles[i] ?? 'ignore'
+                      return (
+                        <th
+                          key={i}
+                          className={clsx(
+                            'min-w-44 px-3 pt-3 pb-2 text-left font-normal transition-opacity duration-200',
+                            role === 'ignore' && 'opacity-60'
+                          )}
+                        >
+                          <div className="mb-1.5 truncate text-xs text-muted">
+                            {header?.[i] ? header[i] : `Column ${i + 1}`}
+                          </div>
+                          <Select
+                            aria-label={`Column ${i + 1} contains`}
+                            value={role}
+                            onValueChange={(v) => setRole(i, v as ColumnRole)}
+                            options={ROLE_OPTIONS}
+                            className="h-9"
+                          />
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewRows.map((r, ri) => (
+                    <tr key={ri} className="border-t border-muted/15 align-top">
+                      {Array.from({ length: colCount }, (_, i) => {
+                        const role = roles[i] ?? 'ignore'
+                        const cell = (r[i] ?? '').trim()
+                        return (
+                          <td
+                            key={i}
+                            className={clsx(
+                              'max-w-72 px-3 py-2.5 transition-opacity duration-200',
+                              role === 'ignore' ? 'text-muted opacity-45' : 'text-text',
+                              (role === 'deck' || role === 'tags') && 'text-xs'
+                            )}
+                          >
+                            {role === 'front' || role === 'back' ? (
+                              <RichHtml html={cell} />
+                            ) : role === 'deck' && !cell ? (
+                              <span className="text-muted">(target deck)</span>
+                            ) : (
+                              <span className="break-words">{cell}</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Well>
             {!hasFront && (
               <p className="flex items-center gap-2 text-sm text-danger">
-                <AlertTriangle size={16} /> Assign one column as Front to continue.
+                <AlertTriangle size={16} /> Choose one column as Front to continue.
+              </p>
+            )}
+            <p className="text-sm font-semibold">
+              {plural(rows.length, 'card')} will be imported into {plural(deckCount, 'deck')}
+            </p>
+            {skipped > 0 && (
+              <p className="flex items-center gap-2 text-sm text-warning">
+                <AlertTriangle size={16} /> {plural(skipped, 'row')} with an empty front will be skipped.
               </p>
             )}
           </Panel>
@@ -315,48 +380,6 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
                 </Field>
               )}
             </div>
-          </Panel>
-
-          <Panel className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold">Preview</h2>
-            {preview.length === 0 ? (
-              <p className="text-sm text-muted">No importable rows with the current mapping.</p>
-            ) : (
-              <Well className="overflow-x-auto p-0">
-                <table className="w-full min-w-[32rem] border-collapse text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted">
-                      <th className="px-4 py-2 font-semibold">Front</th>
-                      <th className="px-4 py-2 font-semibold">Back</th>
-                      <th className="px-4 py-2 font-semibold">Deck</th>
-                      <th className="px-4 py-2 font-semibold">Tags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((r, i) => (
-                      <tr key={i} className="border-t border-muted/15 align-top">
-                        <td className="px-4 py-2">
-                          <RichHtml html={r.front} />
-                        </td>
-                        <td className="px-4 py-2">
-                          <RichHtml html={r.back} />
-                        </td>
-                        <td className="px-4 py-2 text-xs text-muted">{r.deckPath ?? '(target deck)'}</td>
-                        <td className="px-4 py-2 text-xs text-muted">{r.tags?.join(' ')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Well>
-            )}
-            <p className="text-sm font-semibold">
-              {plural(rows.length, 'card')} will be imported into {plural(deckCount, 'deck')}
-            </p>
-            {skipped > 0 && (
-              <p className="flex items-center gap-2 text-sm text-warning">
-                <AlertTriangle size={16} /> {plural(skipped, 'row')} with an empty front will be skipped.
-              </p>
-            )}
           </Panel>
 
           <div className="flex justify-between">

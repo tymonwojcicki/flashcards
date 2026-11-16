@@ -29,6 +29,8 @@ const SIZES: Record<ButtonSize, string> = {
   md: 'h-10 gap-2.5 rounded-2xl px-5 text-sm',
   lg: 'h-12 gap-3 rounded-2xl px-7 text-base'
 }
+// With a leading icon the glyph has visual weight, so trim the left padding to look optically centred.
+const ICON_SIZES_PAD: Record<ButtonSize, string> = { sm: 'pl-3.5', md: 'pl-4', lg: 'pl-6' }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'secondary', size = 'md', icon, hotkey, className, children, type = 'button', ...rest },
@@ -43,6 +45,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         'disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant],
         SIZES[size],
+        icon && ICON_SIZES_PAD[size],
         className
       )}
       {...rest}

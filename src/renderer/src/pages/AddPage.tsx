@@ -41,6 +41,9 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
   const saveKeys = useEffectiveKeys('creator.save')
   const deckKeys = useEffectiveKeys('creator.deck')
   const reverseKeys = useEffectiveKeys('creator.reverse')
+  const frontKeys = useEffectiveKeys('creator.focusFront')
+  const backKeys = useEffectiveKeys('creator.focusBack')
+  const tagsKeys = useEffectiveKeys('creator.focusTags')
 
   const [deckId, setDeckId] = useState<Id | null>(null)
   const [front, setFront] = useState('')
@@ -57,6 +60,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
   const frontEditor = useRef<Editor | null>(null)
   const backEditor = useRef<Editor | null>(null)
   const deckInput = useRef<HTMLInputElement>(null)
+  const tagInput = useRef<HTMLInputElement>(null)
   const draft = useRef<{ front: string; back: string; tags: string[] } | null>(null)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -238,6 +242,9 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
   saveRef.current = save
   useShortcut('creator.save', () => void saveRef.current(), { allowInInputs: true })
   useShortcut('creator.deck', () => deckInput.current?.focus(), { allowInInputs: true })
+  useShortcut('creator.focusFront', () => frontEditor.current?.commands.focus('end'), { allowInInputs: true })
+  useShortcut('creator.focusBack', () => backEditor.current?.commands.focus('end'), { allowInInputs: true })
+  useShortcut('creator.focusTags', () => tagInput.current?.focus(), { allowInInputs: true })
   useShortcut('creator.reverse', () => void setPrefs({ creatorReverse: !reverse }), { allowInInputs: true, enabled: !editing })
 
   const deckOptionsTree: DeckNode[] = useMemo(() => deckTree, [deckTree])
@@ -280,6 +287,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
               autoFocus
               onSubmit={() => void save()}
               editorRef={frontEditor}
+              hotkey={frontKeys}
             />
           </div>
           <CardField
@@ -289,9 +297,10 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
             placeholder="Answer…"
             onSubmit={() => void save()}
             editorRef={backEditor}
+            hotkey={backKeys}
           />
 
-          <TagInput tags={tags} onChange={setTags} suggestions={allTags} />
+          <TagInput tags={tags} onChange={setTags} suggestions={allTags} hotkey={tagsKeys} inputRef={tagInput} />
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             {!editing ? (

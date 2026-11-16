@@ -193,6 +193,10 @@ export function DeckCombobox({
             setOpen(true)
             e.currentTarget.select()
           }}
+          onBlur={(e) => {
+            // Focus moved elsewhere (Tab, a shortcut): close the list.
+            if (!wrapRef.current?.contains(e.relatedTarget as Node | null)) close()
+          }}
           onClick={() => setOpen(true)}
           onChange={(e) => {
             setQuery(e.target.value)

@@ -79,7 +79,7 @@ const handlers: Handlers = {
   addTags: (ids, tags) => notes.addTags(c(), ids, tags),
   resetCards: (ids) => notes.resetCards(c(), ids),
   browse: (q) => notes.browse(c(), q),
-  listTags: () => notes.listTags(c()),
+  listTags: (deckId) => notes.listTags(c(), deckId),
 
   // study
   getSession: (deckId, mode) => study.getSession(c(), deckId, mode),

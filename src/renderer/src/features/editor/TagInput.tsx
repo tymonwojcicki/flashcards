@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { X } from 'lucide-react'
+import { Kbd } from '@renderer/components/ui'
 
 export interface TagInputProps {
   tags: string[]
@@ -8,15 +9,20 @@ export interface TagInputProps {
   suggestions?: string[]
   label?: string
   placeholder?: string
+  /** Shortcut that focuses the input, shown next to the label. */
+  hotkey?: string
+  /** Receives the text input so a page shortcut can focus it. */
+  inputRef?: React.RefObject<HTMLInputElement | null>
   className?: string
 }
 
 /** Chip-style tag editor. Space / Enter / comma add; Backspace on empty removes the last chip. */
-export function TagInput({ tags, onChange, suggestions = [], label = 'Tags', placeholder, className }: TagInputProps): React.JSX.Element {
+export function TagInput({ tags, onChange, suggestions = [], label = 'Tags', placeholder, hotkey, inputRef: externalRef, className }: TagInputProps): React.JSX.Element {
   const [text, setText] = useState('')
   const [focused, setFocused] = useState(false)
   const [active, setActive] = useState(-1)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const ownRef = useRef<HTMLInputElement>(null)
+  const inputRef = externalRef ?? ownRef
 
   const matches = useMemo(() => {
     const q = text.trim().toLowerCase()
@@ -39,9 +45,12 @@ export function TagInput({ tags, onChange, suggestions = [], label = 'Tags', pla
 
   return (
     <div className={clsx('relative flex flex-col gap-2', className)}>
-      <label className="text-sm font-semibold text-text" onClick={() => inputRef.current?.focus()}>
-        {label}
-      </label>
+      <div className="flex min-h-8 items-center justify-between gap-2">
+        <label className="text-sm font-semibold text-text" onClick={() => inputRef.current?.focus()}>
+          {label}
+        </label>
+        {hotkey && <Kbd hotkey={hotkey} />}
+      </div>
       <div
         className="neu-inset flex min-h-10 flex-wrap items-center gap-1.5 rounded-2xl border border-transparent px-2.5 py-1.5 focus-within:border-accent"
         onClick={() => inputRef.current?.focus()}

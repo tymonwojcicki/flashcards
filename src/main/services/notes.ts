@@ -167,9 +167,16 @@ export function resetCards(col: Collection, cardIds: Id[]): void {
   )
 }
 
-export function listTags(col: Collection): string[] {
+export function listTags(col: Collection, deckId?: Id | null): string[] {
   const set = new Set<string>()
-  for (const r of col.all<{ tags: string }>("SELECT DISTINCT tags FROM notes WHERE tags != ''"))
+  let sql = "SELECT DISTINCT tags FROM notes WHERE tags != ''"
+  const params: SqlValue[] = []
+  if (deckId) {
+    const ids = subtreeIds(col, deckId)
+    sql += ` AND deck_id IN (${placeholders(ids.length)})`
+    params.push(...ids)
+  }
+  for (const r of col.all<{ tags: string }>(sql, params))
     decodeTags(r.tags).forEach((t) => set.add(t))
   return [...set].sort((a, b) => a.localeCompare(b))
 }

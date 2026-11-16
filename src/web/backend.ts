@@ -405,7 +405,7 @@ export class WebBackend {
       addTags: (ids, t) => notes.addTags(c(), ids, t),
       resetCards: (ids) => notes.resetCards(c(), ids),
       browse: (q) => notes.browse(c(), q),
-      listTags: () => notes.listTags(c()),
+      listTags: (deckId) => notes.listTags(c(), deckId),
 
       getSession: (d, m) => study.getSession(c(), d, m),
       answer: (id, r, ms) => study.answer(c(), id, r, ms),

@@ -76,6 +76,17 @@ describe('notes & browse', () => {
     expect(notes.browse(col, { tag: 'anim' }).total).toBe(0)
     expect(notes.listTags(col)).toEqual(['animals', 'german'])
   })
+
+  it('lists only tags used within the selected deck subtree', () => {
+    const [child] = decks.ensureDeckPath(col, 'P::C')
+    const [other] = decks.ensureDeckPath(col, 'Other')
+    const parent = decks.getDeckTree(col).find((d) => d.name === 'P')!.id
+    notes.createNote(col, { deckId: child, front: 'a', back: 'b', tags: ['x'], reverse: false })
+    notes.createNote(col, { deckId: other, front: 'c', back: 'd', tags: ['y'], reverse: false })
+    expect(notes.listTags(col, parent)).toEqual(['x'])
+    expect(notes.listTags(col, other)).toEqual(['y'])
+    expect(notes.listTags(col, null)).toEqual(['x', 'y'])
+  })
 })
 
 describe('study', () => {

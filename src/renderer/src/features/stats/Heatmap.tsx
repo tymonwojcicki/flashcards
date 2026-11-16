@@ -82,7 +82,15 @@ export function Heatmap({ days, from, to, today }: { days: DayStats[]; from: str
           'Hover a day for details'
         )}
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block h-auto max-w-full" role="img" aria-label="Review activity heatmap">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        className="block h-auto max-w-full"
+        role="img"
+        aria-label="Review activity heatmap"
+        onMouseLeave={() => setHover(null)}
+      >
         <defs>
           <linearGradient id="hm-grad" x1="0" y1="1" x2="1" y2="0">
             <stop offset="0" style={{ stopColor: 'var(--accent-1)' }} />
@@ -106,8 +114,10 @@ export function Heatmap({ days, from, to, today }: { days: DayStats[]; from: str
           const y = TOP + c.row * (CELL + GAP)
           const o = c.future ? 0 : opacity(c.reviews)
           return (
-            <g key={c.key} onMouseEnter={() => setHover(c)} onMouseLeave={() => setHover(null)}>
-              <rect x={x} y={y} width={CELL} height={CELL} rx={4} fill="var(--shadow-dark)" opacity={c.future ? 0.1 : 0.3} />
+            <g key={c.key} onMouseEnter={() => setHover(c)}>
+              {/* Invisible hit area covering the full cell pitch so cells tile without gaps. */}
+              <rect x={x - GAP / 2} y={y - GAP / 2} width={CELL + GAP} height={CELL + GAP} fill="transparent" />
+              <rect x={x} y={y} width={CELL} height={CELL} rx={4} fill="var(--heat-empty)" opacity={c.future ? 0.4 : 1} />
               {o > 0 && <rect x={x} y={y} width={CELL} height={CELL} rx={4} fill="url(#hm-grad)" opacity={o} />}
               <title>{c.future ? formatDay(c.date) : `${formatDay(c.date)}: ${c.reviews} reviews`}</title>
             </g>
@@ -118,7 +128,7 @@ export function Heatmap({ days, from, to, today }: { days: DayStats[]; from: str
         Less
         {[0, 0.3, 0.5, 0.75, 1].map((o) => (
           <svg key={o} width={12} height={12} aria-hidden="true">
-            <rect width={12} height={12} rx={3} fill="var(--shadow-dark)" opacity={0.3} />
+            <rect width={12} height={12} rx={3} fill="var(--heat-empty)" />
             {o > 0 && <rect width={12} height={12} rx={3} fill="url(#hm-grad)" opacity={o} />}
           </svg>
         ))}

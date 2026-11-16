@@ -414,6 +414,54 @@ textarea:focus-visible,
   from { background-position: 100% 0; }
   to { background-position: 0% 0; }
 }
+/* Split accent button: lift, soft glow pulse and one light sheen across the fill on hover. */
+@utility btn-invite {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition-property: translate, box-shadow, filter, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.32) 50%, transparent 65%);
+    translate: -110% 0;
+  }
+  &:hover {
+    translate: 0 -1px;
+    animation: neu-glow-pulse 700ms var(--ease-out);
+  }
+  &:hover::after { animation: neu-sheen 700ms var(--ease-out) forwards; }
+}
+@keyframes neu-sheen {
+  from { translate: -110% 0; }
+  to { translate: 110% 0; }
+}
+@keyframes neu-glow-pulse {
+  0% { box-shadow: 0 4px 14px var(--accent-glow), inset 1px 1px 0 rgb(255 255 255 / 0.4), inset 0 -2px 5px rgb(0 0 0 / 0.14); }
+  45% { box-shadow: 0 6px 24px var(--accent-glow), 0 0 0 3px color-mix(in srgb, var(--accent-1) 22%, transparent), inset 1px 1px 0 rgb(255 255 255 / 0.4), inset 0 -2px 5px rgb(0 0 0 / 0.14); }
+  100% { box-shadow: 0 5px 18px var(--accent-glow), inset 1px 1px 0 rgb(255 255 255 / 0.4), inset 0 -2px 5px rgb(0 0 0 / 0.14); }
+}
+
+/* Success burst: full-screen accent glow with a check that pops in, then fades. */
+.anim-burst { animation: neu-burst-glow 900ms var(--ease-out) forwards; }
+.anim-burst-icon { animation: neu-burst-icon 900ms var(--ease-out) forwards; }
+@keyframes neu-burst-glow {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes neu-burst-icon {
+  0% { opacity: 0; scale: 0.9; }
+  35% { opacity: 1; scale: 1; }
+  70% { opacity: 1; scale: 1; }
+  100% { opacity: 0; scale: 1.04; }
+}
+
 /* Neutral: text goes to the accent on hover. */
 @utility btn-neutral {
   color: var(--text);
@@ -449,6 +497,8 @@ textarea:focus-visible,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .anim-burst,
+  .anim-burst-icon { display: none; }
 }
 
 /* Typography: Hubot Sans for headings, Monaspace Neon for technical accents */
@@ -473,4 +523,12 @@ svg text {
 [role="alertdialog"]:focus,
 [role="alertdialog"]:focus-visible {
   outline: none;
+}
+
+/* --- Heatmap empty-cell colour (agentB) --- */
+:root {
+  --heat-empty: #c5ccda;
+}
+[data-theme="dark"] {
+  --heat-empty: #3a3f4d;
 }

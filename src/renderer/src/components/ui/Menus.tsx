@@ -36,14 +36,16 @@ export interface DropdownMenuProps {
   trigger: React.ReactElement
   items: MenuEntry[]
   align?: 'start' | 'center' | 'end'
+  /** Called when the menu closes and would return focus to the trigger; preventDefault to keep focus elsewhere. */
+  onCloseAutoFocus?: (e: Event) => void
 }
 
-export function DropdownMenu({ trigger, items, align = 'end' }: DropdownMenuProps): React.JSX.Element {
+export function DropdownMenu({ trigger, items, align = 'end', onCloseAutoFocus }: DropdownMenuProps): React.JSX.Element {
   return (
     <DM.Root>
       <DM.Trigger asChild>{trigger}</DM.Trigger>
       <DM.Portal>
-        <DM.Content align={align} sideOffset={8} className={CONTENT}>
+        <DM.Content align={align} sideOffset={8} className={CONTENT} onCloseAutoFocus={onCloseAutoFocus}>
           {items.map((it, i) =>
             it.type === 'separator' ? (
               <DM.Separator key={i} className="my-1.5 h-px bg-muted/25" />
@@ -65,14 +67,15 @@ export interface ContextMenuProps {
   /** The area that opens the menu on right-click (rendered asChild). */
   children: React.ReactElement
   items: MenuEntry[]
+  onCloseAutoFocus?: (e: Event) => void
 }
 
-export function ContextMenu({ children, items }: ContextMenuProps): React.JSX.Element {
+export function ContextMenu({ children, items, onCloseAutoFocus }: ContextMenuProps): React.JSX.Element {
   return (
     <CM.Root>
       <CM.Trigger asChild>{children}</CM.Trigger>
       <CM.Portal>
-        <CM.Content className={CONTENT}>
+        <CM.Content className={CONTENT} onCloseAutoFocus={onCloseAutoFocus}>
           {items.map((it, i) =>
             it.type === 'separator' ? (
               <CM.Separator key={i} className="my-1.5 h-px bg-muted/25" />

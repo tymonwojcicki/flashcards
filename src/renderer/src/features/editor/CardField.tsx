@@ -27,6 +27,8 @@ export interface CardFieldProps {
   label: string
   /** Receives the TipTap editor instance (e.g. to call editor.commands.focus()). */
   editorRef?: { current: Editor | null }
+  /** Shortcut that focuses this field, shown next to the label. */
+  hotkey?: string
   className?: string
 }
 
@@ -227,6 +229,7 @@ export function CardField({
   onSubmit,
   label,
   editorRef,
+  hotkey,
   className
 }: CardFieldProps): React.JSX.Element {
   const [focused, setFocused] = useState(false)
@@ -430,12 +433,12 @@ export function CardField({
   return (
     <div className={clsx('flex flex-col gap-2', className)}>
       <div className="flex min-h-8 items-center justify-between gap-2">
-        <label
-          className="text-sm font-semibold text-text"
-          onClick={() => editor?.commands.focus()}
-        >
-          {label}
-        </label>
+        <span className="flex items-center gap-2">
+          <label className="text-sm font-semibold text-text" onClick={() => editor?.commands.focus()}>
+            {label}
+          </label>
+          {hotkey && <Kbd hotkey={hotkey} />}
+        </span>
         <div
           className={clsx(
             'flex items-center gap-0.5 transition-opacity duration-150',
