@@ -6,6 +6,7 @@ import { useApp } from '@renderer/store/app'
 import { flattenDecks } from '@renderer/lib/decks'
 import { plural } from '@renderer/lib/format'
 import { Heatmap } from '@renderer/features/stats/Heatmap'
+import { isoDay, parseDay } from '@renderer/features/stats/dates'
 import { ForecastChart } from '@renderer/features/stats/ForecastChart'
 import { StateBar } from '@renderer/features/stats/StateBar'
 import type { Stats } from '@shared/types'
@@ -40,6 +41,9 @@ export default function StatsPage({ deckId }: { deckId?: string }): React.JSX.El
   const flat = useMemo(() => flattenDecks(deckTree), [deckTree])
   const [filter, setFilter] = useState<string>(deckId ?? ALL)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [range, setRange] = useState(`year:${new Date().getFullYear()}`)
+  const [customFrom, setCustomFrom] = useState(`${new Date().getFullYear()}-01-01`)
+  const [customTo, setCustomTo] = useState(isoDay(new Date()))
 
   useEffect(() => {
     let cancelled = false
@@ -72,9 +76,38 @@ export default function StatsPage({ deckId }: { deckId?: string }): React.JSX.El
     return <div className="mx-auto flex max-w-5xl flex-col gap-6">{header}</div>
   }
 
-  const today = stats.days[stats.days.length - 1]
-  const totalReviews = stats.days.reduce((s, d) => s + d.reviews, 0)
+  const todayKey = stats.forecast[0]?.day ?? isoDay(new Date())
+  const today = stats.days.find((d) => d.day === todayKey)
   const t = stats.totals
+
+  // Activity range: presets, every year that has reviews, or custom dates.
+  const thisYear = Number(todayKey.slice(0, 4))
+  const firstYear = stats.days.length ? Number(stats.days[0].day.slice(0, 4)) : thisYear
+  const years: number[] = []
+  for (let y = thisYear; y >= Math.min(firstYear, thisYear); y--) years.push(y)
+  const monthsBack = (n: number): string => {
+    const d = parseDay(todayKey)
+    d.setMonth(d.getMonth() - n)
+    d.setDate(d.getDate() + 1)
+    return isoDay(d)
+  }
+  const span: { from: string; to: string } = range.startsWith('year:')
+    ? { from: `${range.slice(5)}-01-01`, to: `${range.slice(5)}-12-31` }
+    : range === 'custom'
+      ? customFrom <= customTo
+        ? { from: customFrom, to: customTo }
+        : { from: customTo, to: customFrom }
+      : { from: monthsBack(Number(range.slice(4))), to: todayKey }
+  const rangeReviews = stats.days.filter((d) => d.day >= span.from && d.day <= span.to).reduce((s, d) => s + d.reviews, 0)
+  const rangeOptions = [
+    ...years.map((y) => ({ value: `year:${y}`, label: y === thisYear ? `This year (${y})` : String(y) })),
+    { value: 'last12', label: 'Last 12 months' },
+    { value: 'last6', label: 'Last 6 months' },
+    { value: 'last3', label: 'Last 3 months' },
+    { value: 'custom', label: 'Custom range' }
+  ]
+  const dateInput =
+    'neu-inset rounded-xl bg-transparent px-3 py-1.5 text-sm text-text outline-none focus-visible:ring-2 focus-visible:ring-accent/60'
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -112,19 +145,39 @@ export default function StatsPage({ deckId }: { deckId?: string }): React.JSX.El
           </div>
 
           <Panel className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold">Review activity</h2>
-            {totalReviews === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">
-                No reviews recorded.
-              </p>
-            ) : (
-              <>
-                <p className="text-xs text-muted">
-                  {plural(totalReviews, 'review')} in the last year
-                </p>
-                <Heatmap days={stats.days} />
-              </>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Review activity</h2>
+                <p className="text-xs text-muted">{plural(rangeReviews, 'review')} in this period</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {range === 'custom' && (
+                  <>
+                    <input
+                      type="date"
+                      aria-label="From"
+                      className={dateInput}
+                      value={customFrom}
+                      max={customTo}
+                      onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
+                    />
+                    <span className="text-sm text-muted">to</span>
+                    <input
+                      type="date"
+                      aria-label="To"
+                      className={dateInput}
+                      value={customTo}
+                      min={customFrom}
+                      onChange={(e) => e.target.value && setCustomTo(e.target.value)}
+                    />
+                  </>
+                )}
+                <div className="w-48">
+                  <Select aria-label="Date range" value={range} onValueChange={setRange} options={rangeOptions} />
+                </div>
+              </div>
+            </div>
+            <Heatmap days={stats.days} from={span.from} to={span.to} today={todayKey} />
           </Panel>
 
           <Panel className="flex flex-col gap-3">

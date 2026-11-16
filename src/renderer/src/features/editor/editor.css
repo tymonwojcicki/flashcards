@@ -66,7 +66,7 @@
   transition: background-color 120ms;
 }
 .math-node:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 .math-inline {
   display: inline-block;
@@ -94,17 +94,43 @@
   flex-direction: column;
   gap: 0.5rem;
 }
-.math-preview {
-  min-height: 2.5rem;
-  max-height: 8rem;
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
+.math-field-host {
+  min-height: 2.75rem;
+}
+math-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 1.2rem;
+  color: var(--text);
   background: var(--bg);
-  padding: 0.25rem 0.5rem;
-  font-size: 1.05rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  box-shadow: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+  --caret-color: var(--accent);
+  --selection-background-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  --selection-color: var(--text);
+  --contains-highlight-background-color: color-mix(in srgb, var(--accent) 7%, transparent);
+  --placeholder-color: var(--text-muted);
+}
+math-field:focus-within {
+  border-color: var(--accent);
+  outline: none;
+}
+math-field::part(menu-toggle) {
+  display: none;
+}
+math-field::part(virtual-keyboard-toggle) {
+  color: var(--text-muted);
+}
+math-field::part(virtual-keyboard-toggle):hover {
+  color: var(--accent);
+}
+/* MathLive's virtual keyboard lives in <body>: keep it above the popover (z-index 120) and dialogs. */
+:root {
+  --keyboard-zindex: 2000;
 }
 
 @keyframes shake {

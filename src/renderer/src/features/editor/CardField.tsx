@@ -9,7 +9,8 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { Bold, Image as ImageIcon, Italic, List, Sigma, Underline as UnderlineIcon } from 'lucide-react'
 import { IconButton, Kbd, toast } from '@renderer/components/ui'
 import { useEffectiveKeys } from '@renderer/lib/shortcuts'
-import { MathBlock, MathInline, renderKatex } from './mathExtensions'
+import type { MathfieldElement } from 'mathlive'
+import { MathBlock, MathInline } from './mathExtensions'
 import type { MathEditRequest } from './mathExtensions'
 import { imageFilesFrom, saveImageFile } from './media'
 import { eventMatches } from './keys'
@@ -41,6 +42,28 @@ function normalize(html: string): string {
   return html === '<p></p>' ? '' : html
 }
 
+/** Empty MathLive slots come out as \placeholder{}, which KaTeX can't render; drop them. */
+const cleanLatex = (l: string): string => l.replace(/\\placeholder(\[[^\]]*\])?\{[^{}]*\}/g, '')
+
+type MathfieldEl = HTMLElement & MathfieldElement
+
+/** MathLive is loaded on first use so it stays out of the main bundle. */
+let mathliveLoad: Promise<void> | null = null
+function loadMathlive(): Promise<void> {
+  if (!mathliveLoad) {
+    mathliveLoad = import('mathlive').then(({ MathfieldElement }) => {
+      // Fonts ship with the app (see vite.mathlive-fonts.ts); no sounds are fetched.
+      MathfieldElement.fontsDirectory = new URL('./mathlive-fonts', document.baseURI).href
+      MathfieldElement.soundsDirectory = null
+      MathfieldElement.plonkSound = null
+    })
+    mathliveLoad.catch(() => {
+      mathliveLoad = null
+    })
+  }
+  return mathliveLoad
+}
+
 function MathPopover({
   state,
   onConfirm,
@@ -51,73 +74,144 @@ function MathPopover({
   onCancel: () => void
 }): React.JSX.Element {
   const [latex, setLatex] = useState(state.latex)
-  const previewRef = useRef<HTMLDivElement>(null)
+  const [ready, setReady] = useState(false)
+  const [source, setSource] = useState(false)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const fieldRef = useRef<MathfieldEl | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const latexRef = useRef(latex)
   latexRef.current = latex
   const doneRef = useRef(false)
+  const onConfirmRef = useRef(onConfirm)
+  onConfirmRef.current = onConfirm
+  const onCancelRef = useRef(onCancel)
+  onCancelRef.current = onCancel
+
+  const confirm = useCallback(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onConfirmRef.current(latexRef.current)
+  }, [])
+  const cancel = useCallback(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onCancelRef.current()
+  }, [])
 
   useEffect(() => {
-    if (previewRef.current) {
-      if (latex.trim()) renderKatex(previewRef.current, latex, state.kind === 'block')
-      else {
-        previewRef.current.textContent = 'Type LaTeX, e.g. x^2 + \\frac{a}{b}'
-        previewRef.current.classList.add('math-empty')
-      }
+    let alive = true
+    loadMathlive()
+      .then(() => alive && setReady(true))
+      .catch(() => {
+        if (!alive) return
+        setReady(true)
+        setSource(true)
+      })
+    return () => {
+      alive = false
+      window.mathVirtualKeyboard?.hide({ animate: false })
     }
-  }, [latex, state.kind])
+  }, [])
+
+  // Create the <math-field> imperatively (visual mode only) and keep `latex` in sync with it.
+  useEffect(() => {
+    if (!ready || source || !hostRef.current) return
+    const mf = document.createElement('math-field') as MathfieldEl
+    mf.setAttribute('aria-label', 'Formula')
+    mf.mathVirtualKeyboardPolicy = 'manual'
+    mf.value = latexRef.current
+    mf.addEventListener('input', () => {
+      latexRef.current = cleanLatex(mf.getValue('latex'))
+      setLatex(latexRef.current)
+    })
+    mf.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault()
+          e.stopPropagation()
+          latexRef.current = cleanLatex(mf.getValue('latex'))
+          confirm()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          cancel()
+        }
+      },
+      true
+    )
+    hostRef.current.appendChild(mf)
+    fieldRef.current = mf
+    const t = window.setTimeout(() => mf.focus(), 0)
+    return () => {
+      window.clearTimeout(t)
+      fieldRef.current = null
+      window.mathVirtualKeyboard?.hide({ animate: false })
+      mf.remove()
+    }
+  }, [ready, source, confirm, cancel])
 
   useEffect(() => {
     const down = (e: MouseEvent): void => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node) && !doneRef.current) {
-        doneRef.current = true
-        onConfirm(latexRef.current)
-      }
+      const target = e.target as Element | null
+      if (!boxRef.current || boxRef.current.contains(target) || doneRef.current) return
+      // Taps on MathLive's virtual keyboard (rendered outside the popover) are not "outside".
+      if (target?.closest?.('.ML__keyboard, .MLK__plate, .ML__popover')) return
+      confirm()
     }
     document.addEventListener('mousedown', down, true)
     return () => document.removeEventListener('mousedown', down, true)
-  }, [onConfirm])
+  }, [confirm])
 
   const width = 340
   const left = Math.max(12, Math.min(state.anchor.left, window.innerWidth - width - 12))
   const below = state.anchor.bottom + 8
-  const top = below + 150 > window.innerHeight ? Math.max(12, state.anchor.top - 158) : below
+  const top = below + 120 > window.innerHeight ? Math.max(12, state.anchor.top - 128) : below
 
   return createPortal(
-    <div
-      ref={boxRef}
-      className="math-popover neu-raised anim-menu-in"
-      style={{ left, top, width }}
-    >
-      <input
-        autoFocus
-        value={latex}
-        onChange={(e) => setLatex(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            e.stopPropagation()
-            doneRef.current = true
-            onConfirm(latex)
-          } else if (e.key === 'Escape') {
-            e.preventDefault()
-            e.stopPropagation()
-            doneRef.current = true
-            onCancel()
-          }
-        }}
-        spellCheck={false}
-        placeholder="LaTeX"
-        aria-label="LaTeX"
-        className="neu-inset h-9 w-full rounded-xl border border-transparent bg-bg px-3 font-mono text-sm text-text focus-visible:border-accent"
-      />
-      <div ref={previewRef} className="math-preview" />
-      <div className="mt-1 flex items-center justify-end gap-2 text-xs text-muted">
-        <span>
-          <Kbd hotkey="Enter" force /> confirm
-        </span>
-        <span>
-          <Kbd hotkey="Esc" force /> cancel
+    <div ref={boxRef} className="math-popover neu-raised anim-menu-in" style={{ left, top, width }}>
+      {source ? (
+        <input
+          autoFocus
+          value={latex}
+          onChange={(e) => setLatex(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.stopPropagation()
+              confirm()
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              e.stopPropagation()
+              cancel()
+            }
+          }}
+          spellCheck={false}
+          placeholder="LaTeX"
+          aria-label="LaTeX"
+          className="neu-inset h-11 w-full rounded-xl border border-transparent bg-bg px-3 font-mono text-sm text-text focus-visible:border-accent"
+        />
+      ) : (
+        <div ref={hostRef} className="math-field-host" aria-busy={!ready} />
+      )}
+      <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted">
+        <button
+          type="button"
+          className="underline-offset-2 hover:text-text hover:underline"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setSource((v) => !v)
+          }}
+        >
+          {source ? 'Back to visual editor' : 'Edit as LaTeX'}
+        </button>
+        <span className="flex items-center gap-2">
+          <span>
+            <Kbd hotkey="Enter" force /> confirm
+          </span>
+          <span>
+            <Kbd hotkey="Esc" force /> cancel
+          </span>
         </span>
       </div>
     </div>,

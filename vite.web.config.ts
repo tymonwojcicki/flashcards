@@ -6,6 +6,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import type { Plugin } from 'vite'
+import { mathliveFonts } from './vite.mathlive-fonts'
 
 // Strict Content-Security-Policy for the published build: only code from this site runs, and the
 // app cannot connect to or load anything from other servers. (Not applied to the dev server,
@@ -42,7 +43,7 @@ export default defineConfig({
   root: resolve(__dirname, 'src/web'),
   base: './',
   publicDir: resolve(__dirname, 'src/web/public'),
-  plugins: [react(), tailwindcss(), cspPlugin(), swPlugin()],
+  plugins: [react(), tailwindcss(), mathliveFonts(), cspPlugin(), swPlugin()],
   resolve: {
     alias: {
       '@renderer': resolve(__dirname, 'src/renderer/src'),

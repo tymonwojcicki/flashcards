@@ -263,13 +263,12 @@ export function getStats(col: Collection, deckId: Id | null, now = Date.now()): 
   const ids = deckId ? subtreeIds(col, deckId) : null
   const deckFilter = ids ? `AND n.deck_id IN (${ph(ids.length)})` : ''
   const dp: SqlValue[] = ids ?? []
-  const yearAgo = now - 366 * 86_400_000
-
+  // Full history: the activity heatmap can show any date range.
   const logs = col.all<{ ts: number; rating: number; state: number; review_ms: number }>(
     `SELECT l.ts, l.rating, l.state, l.review_ms FROM review_log l
      JOIN cards c ON c.id = l.card_id JOIN notes n ON n.id = c.note_id
-     WHERE l.ts >= ? ${deckFilter} ORDER BY l.ts`,
-    [yearAgo, ...dp]
+     WHERE 1=1 ${deckFilter} ORDER BY l.ts`,
+    dp
   )
   const byDay = new Map<string, DayStats>()
   for (const l of logs) {
