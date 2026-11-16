@@ -5,6 +5,7 @@ import * as RSelect from '@radix-ui/react-select'
 import * as RSwitch from '@radix-ui/react-switch'
 import * as RSlider from '@radix-ui/react-slider'
 import { Check, ChevronDown } from 'lucide-react'
+import { playSound } from '@renderer/lib/sound'
 
 const FIELD_BASE =
   'neu-inset w-full rounded-2xl border border-transparent bg-bg px-4 text-sm text-text placeholder:text-muted/80 transition-shadow duration-150 focus-visible:border-accent disabled:opacity-50'
@@ -118,7 +119,10 @@ export function Switch({ checked, onCheckedChange, id, disabled, className, ...r
     <RSwitch.Root
       id={id}
       checked={checked}
-      onCheckedChange={onCheckedChange}
+      onCheckedChange={(c) => {
+        playSound('toggle')
+        onCheckedChange(c)
+      }}
       disabled={disabled}
       aria-label={rest['aria-label']}
       className={clsx(

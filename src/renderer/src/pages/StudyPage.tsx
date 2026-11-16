@@ -24,6 +24,8 @@ import { findDeck } from '@renderer/lib/decks'
 import { useEffectiveKeys, useShortcut } from '@renderer/lib/shortcuts'
 import type { ShortcutId } from '@renderer/lib/shortcuts'
 import { useApp } from '@renderer/store/app'
+import { playSound } from '@renderer/lib/sound'
+import type { SoundName } from '@renderer/lib/sound'
 import { QuickEditDialog } from '@renderer/features/study/QuickEditDialog'
 import {
   applyNoteEdit,
@@ -61,6 +63,13 @@ const RATINGS: { rating: Rating; label: string; id: ShortcutId; tone: string }[]
   { rating: Rating.Good, label: 'Good', id: 'study.good', tone: 'text-good' },
   { rating: Rating.Easy, label: 'Easy', id: 'study.easy', tone: 'text-easy' }
 ]
+
+const RATING_SOUND: Record<Rating, SoundName> = {
+  [Rating.Again]: 'again',
+  [Rating.Hard]: 'hard',
+  [Rating.Good]: 'good',
+  [Rating.Easy]: 'easy'
+}
 
 function RatingButton(props: {
   rating: Rating
@@ -205,14 +214,24 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   // ---- actions ----
   const exit = (): void => navigate({ name: 'decks' })
 
+  // Session finished (queue emptied after at least one answer).
+  const finished = phase === 'ready' && total > 0 && queue.length === 0 && stats.answered > 0
+  useEffect(() => {
+    if (finished) playSound('complete')
+  }, [finished])
+
   const reveal = (): void => {
-    if (cur && !revealed) setRevealed(true)
+    if (cur && !revealed) {
+      playSound('reveal')
+      setRevealed(true)
+    }
   }
 
   const answer = async (rating: Rating): Promise<void> => {
     if (!cur || !revealed || busy.current) return
     if (!affects && rating !== Rating.Again && rating !== Rating.Good) return
     busy.current = true
+    playSound(RATING_SOUND[rating])
     setPressed(rating)
     setTimeout(() => setPressed(null), 180)
     const durationMs = Math.min(Date.now() - shownAt.current, 5 * 60_000)
@@ -275,6 +294,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
         timeMs: Math.max(0, s.timeMs - h.durationMs)
       }))
       commit(pushFront(queueRef.current, h.sc))
+      playSound('undo')
       toast('Undone')
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not undo', { kind: 'error' })

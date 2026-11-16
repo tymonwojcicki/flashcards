@@ -161,6 +161,10 @@ export interface Prefs {
   shortcutOverrides: Record<string, string>
   lastDeckId: Id | null
   creatorReverse: boolean
+  /** Short synthesized UI sounds. */
+  soundEffects: boolean
+  /** 0 - 1 */
+  soundVolume: number
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -171,7 +175,9 @@ export const DEFAULT_PREFS: Prefs = {
   fontScale: 1,
   shortcutOverrides: {},
   lastDeckId: null,
-  creatorReverse: false
+  creatorReverse: false,
+  soundEffects: true,
+  soundVolume: 0.6
 }
 
 export interface BrowseQuery {

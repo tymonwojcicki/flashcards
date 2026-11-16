@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/react'
 import type { DeckNode, Id } from '@shared/types'
 import { Button, IconButton, Kbd, Switch, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
+import { playSound } from '@renderer/lib/sound'
 import { useShortcut, useEffectiveKeys } from '@renderer/lib/shortcuts'
 import { findDeck } from '@renderer/lib/decks'
 import { deckPathLabel, plural } from '@renderer/lib/format'
@@ -180,6 +181,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
         ...list
       ])
       setLastAddedId(note.id)
+      playSound('added')
       setFlash((n) => n + 1)
       setFront('')
       setBack('')

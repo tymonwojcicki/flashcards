@@ -4,7 +4,10 @@ import { useApp } from '@renderer/store/app'
 import { Segmented, SettingRow } from './common'
 import { ShortcutsEditor } from './ShortcutsEditor'
 import { AccentPicker } from './AccentPicker'
+import { playSound } from '@renderer/lib/sound'
 import type { Theme } from '@shared/types'
+
+let lastPreview = 0
 
 export function GeneralTab(): React.JSX.Element {
   const prefs = useApp((s) => s.prefs)
@@ -40,6 +43,45 @@ export function GeneralTab(): React.JSX.Element {
             onCheckedChange={(showHotkeyHints) => void setPrefs({ showHotkeyHints })}
           />
         </SettingRow>
+
+        <SettingRow
+          title="Sound effects"
+          desc="Play short sounds when you reveal, rate and add cards."
+        >
+          <Switch
+            aria-label="Sound effects"
+            checked={prefs.soundEffects}
+            onCheckedChange={(soundEffects) => {
+              void setPrefs({ soundEffects })
+              if (soundEffects) playSound('preview')
+            }}
+          />
+        </SettingRow>
+
+        {prefs.soundEffects && (
+          <SettingRow title="Volume" desc="How loud the sounds are.">
+            <div className="flex items-center gap-3">
+              <Slider
+                aria-label="Sound volume"
+                min={0}
+                max={1}
+                step={0.05}
+                value={prefs.soundVolume}
+                onValueChange={(v) => {
+                  void setPrefs({ soundVolume: Math.round(v * 100) / 100 })
+                  const now = Date.now()
+                  if (now - lastPreview > 140) {
+                    lastPreview = now
+                    playSound('preview')
+                  }
+                }}
+              />
+              <span className="w-12 text-right text-sm font-semibold tabular-nums">
+                {Math.round(prefs.soundVolume * 100)}%
+              </span>
+            </div>
+          </SettingRow>
+        )}
 
         <SettingRow title="Font size" desc="Scales all text in the app.">
           <div className="flex items-center gap-3">

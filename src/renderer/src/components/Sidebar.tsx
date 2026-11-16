@@ -138,6 +138,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       onMouseEnter={collapsed ? onEnter : undefined}
       onMouseLeave={collapsed ? onLeave : undefined}
     >
+      {/* Collapsed: the hover area runs from the screen's left edge (and full height) to the rail's right edge. */}
+      {collapsed && <div aria-hidden className="absolute -top-4 -bottom-4 -left-4 right-0" />}
       <nav
         aria-label="Main"
         data-floating={floating || undefined}

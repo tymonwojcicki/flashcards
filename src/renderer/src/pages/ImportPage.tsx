@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { AlertTriangle, ArrowLeft, Check, FileText, FolderOpen, Layers, Upload } from 'lucide-react'
 import { Button, Field, Input, Panel, Select, Switch, toast, Well } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
+import { playSound } from '@renderer/lib/sound'
 import { flattenDecks } from '@renderer/lib/decks'
 import { plural } from '@renderer/lib/format'
 import { RichHtml } from '@renderer/lib/html'
@@ -102,6 +103,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [burst, setBurst] = useState(false)
+  const [pasted, setPasted] = useState('')
   const [result, setResult] = useState<{ res: ImportResult; deckId: string } | null>(null)
 
   const table = useMemo(() => (file ? parseTable(file.text, delimiter) : []), [file, delimiter])
@@ -186,6 +188,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
       await refreshDecks()
       setResult({ res: { ...res, decksCreated: res.decksCreated + created }, deckId: defaultId })
       setStep(2)
+      playSound('import')
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setBurst(true)
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Import failed', { kind: 'error' })
@@ -254,6 +257,29 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
             </p>
             <p className="text-sm">Comma, semicolon, tab and pipe separated files are detected automatically.</p>
           </div>
+          <Panel className="flex flex-col gap-3">
+            <label htmlFor="import-paste" className="text-sm font-semibold text-text">
+              Or paste text
+            </label>
+            <p className="-mt-2 text-xs text-muted">For example, CSV from a spreadsheet or from an AI assistant.</p>
+            <textarea
+              id="import-paste"
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              rows={6}
+              spellCheck={false}
+              placeholder={'front,back,deck,tags\nWhat is 2 + 2?,4,Math,'}
+              className="neu-inset w-full resize-y rounded-2xl border border-transparent bg-transparent px-4 py-3 font-mono text-sm text-text outline-none placeholder:text-muted/70 focus:border-accent"
+            />
+            <div className="flex justify-end">
+              <Button
+                disabled={!pasted.trim()}
+                onClick={() => loadFile({ path: '', name: 'Pasted cards', text: pasted.replace(/^\s*```[a-z]*\s*\n|\n\s*```\s*$/gi, '') })}
+              >
+                Continue
+              </Button>
+            </div>
+          </Panel>
           <HelpCard />
         </>
       )}
