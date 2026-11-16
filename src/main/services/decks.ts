@@ -12,7 +12,7 @@ import {
   type PresetConfig
 } from '../../shared/types'
 import { dayStart, nextDayStart } from './time'
-import { doneTodayByDeck, inheritedPreset, isAvailable, selectToday, SELECT_CANDIDATES, type Candidate } from './todaysQueue'
+import { doneTodayByDeck, inheritedPreset, isAvailable, learnAheadMsOf, selectToday, SELECT_CANDIDATES, type Candidate } from './todaysQueue'
 import { trashDeck } from './trash'
 
 interface DeckRow {
@@ -186,8 +186,9 @@ export function setDeckPreset(col: Collection, id: Id, presetId: Id | null): voi
 
 // ---------------- tree with counts ----------------
 export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
-  const { dayStartHour } = getCollectionSettings(col)
+  const { dayStartHour, learnAheadMinutes } = getCollectionSettings(col)
   const dayEnd = nextDayStart(now, dayStartHour)
+  const learnAheadMs = learnAheadMsOf(learnAheadMinutes)
   const decks = allDecks(col)
 
   const cardsByDeck = new Map<string, Candidate[]>()
@@ -218,7 +219,7 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
       sub.done.new += k.done.new
       sub.done.review += k.done.review
     }
-    const q = selectToday(sub.cards, { preset: inheritedPreset(byId, presets, d.id).config, done: sub.done, dayEnd, now })
+    const q = selectToday(sub.cards, { preset: inheritedPreset(byId, presets, d.id).config, done: sub.done, dayEnd, learnAheadMs, now })
     const counts: DeckCounts = {
       new: q.new.length,
       learning: q.learning.length,

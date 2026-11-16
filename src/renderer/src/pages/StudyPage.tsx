@@ -146,17 +146,9 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   const history = useRef<HistoryEntry[]>([])
   const shownAt = useRef(Date.now())
   const busy = useRef(false)
-  // Learn-ahead limit (Settings > Scheduling): learning cards due within this window are shown
-  // right away when nothing else is ready.
+  // Learn-ahead limit (Settings > Scheduling), sent with the session: learning cards due within
+  // this window are shown right away when nothing else is ready.
   const learnAheadMs = useRef(0)
-  useEffect(() => {
-    window.api.getCollectionSettings().then(
-      (s) => {
-        learnAheadMs.current = Math.max(0, s.learnAheadMinutes) * 60_000
-      },
-      () => {}
-    )
-  }, [])
 
   /** Replace the queue and choose which card to show next. */
   const commit = useCallback((q: QueueItem[]) => {
@@ -181,6 +173,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       .then((s: StudySession) => {
         if (cancelled) return
         setAffects(s.affectsSchedule)
+        learnAheadMs.current = s.learnAheadMs
         setTotal(s.cards.length)
         commit(makeQueue(s.cards))
         setPhase('ready')

@@ -17,7 +17,7 @@ import { deckPath, getCollectionSettings, resolvePreset, subtreeIds } from './de
 import { toCard, toNote, type CardRow } from './notes'
 import { preview, retrievability, reviewCard, reviveCard, serializeCard } from './scheduler'
 import { dayKey, dayStart, nextDayStart } from './time'
-import { loadTodaysQueue, shuffle } from './todaysQueue'
+import { learnAheadMsOf, loadTodaysQueue, shuffle } from './todaysQueue'
 
 type JoinedRow = CardRow & {
   deck_id: string
@@ -61,6 +61,7 @@ function toStudyCard(col: Collection, r: JoinedRow, pathCache: Map<string, strin
 export async function getSession(col: Collection, deckId: Id, mode: StudyMode, now = Date.now()): Promise<StudySession> {
   const ids = subtreeIds(col, deckId)
   const cfg = resolvePreset(col, deckId).config
+  const learnAheadMs = learnAheadMsOf(getCollectionSettings(col).learnAheadMinutes)
   const inDecks = `n.deck_id IN (${ph(ids.length)})`
   const avail = `c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)`
   const q = (extra: string, params: SqlValue[], order: string, limit?: number) =>
@@ -72,7 +73,7 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
   const wrap = (rows: JoinedRow[]) => rows.map((r) => toStudyCard(col, r, pathCache))
 
   if (mode === 'cram') {
-    return { mode, deckId, affectsSchedule: false, cards: wrap(shuffle(q('1=1', [], 'c.position'))) }
+    return { mode, deckId, affectsSchedule: false, learnAheadMs, cards: wrap(shuffle(q('1=1', [], 'c.position'))) }
   }
   if (mode === 'weak') {
     const rows = q('c.state != 0', [], 'c.lapses DESC')
@@ -83,7 +84,7 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
       if (r.lapses >= 2 || ret < 0.85) scored.push([score, r])
     }
     scored.sort((a, b) => a[0] - b[0])
-    return { mode, deckId, affectsSchedule: false, cards: wrap(shuffle(scored.slice(0, 50).map(([, r]) => r))) }
+    return { mode, deckId, affectsSchedule: false, learnAheadMs, cards: wrap(shuffle(scored.slice(0, 50).map(([, r]) => r))) }
   }
 
   const tq = loadTodaysQueue(col, deckId, now)
@@ -92,7 +93,7 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
   const rows = new Map(
     col.all<JoinedRow>(`${SELECT_JOINED} WHERE c.id IN (${ph(picked.length)})`, picked.map((c) => c.id)).map((r) => [r.id, r])
   )
-  return { mode, deckId, affectsSchedule: true, cards: wrap(picked.map((c) => rows.get(c.id)!)) }
+  return { mode, deckId, affectsSchedule: true, learnAheadMs, cards: wrap(picked.map((c) => rows.get(c.id)!)) }
 }
 
 // ---------------- answering & undo ----------------

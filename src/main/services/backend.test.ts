@@ -26,6 +26,44 @@ const memPort = (): MediaPort => {
 
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'fc-test-'))
 
+describe('learn-ahead', () => {
+  const MIN = 60_000
+  // Noon, so "in 6 hours" stays inside the study day whatever the time zone's day-start falls on.
+  const now = new Date(2026, 0, 15, 12).getTime()
+  const learningDueIn = (ms: number) => {
+    const [d] = decks.ensureDeckPath(col, 'A')
+    const note = notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: false })
+    const { id } = col.get<{ id: string }>('SELECT id FROM cards WHERE note_id = ?', [note.id])!
+    col.run('UPDATE cards SET state = 1, due = ? WHERE id = ?', [now + ms, id])
+    notes.createNote(col, { deckId: d, front: 'other', back: 'a', tags: [], reverse: false })
+    return { d, id }
+  }
+  const learningCount = () => decks.getDeckTree(col, now)[0].counts.learning
+
+  it('holds back a learning card due in 6 hours from the count and the session', async () => {
+    const { d, id } = learningDueIn(6 * 60 * MIN)
+    expect(learningCount()).toBe(0)
+    for (const mode of ['mixed', 'review'] as const) {
+      expect((await study.getSession(col, d, mode, now)).cards.map((c) => c.card.id)).not.toContain(id)
+    }
+  })
+
+  it('counts a learning card due in 10 minutes and shows it first', async () => {
+    const { d, id } = learningDueIn(10 * MIN)
+    expect(learningCount()).toBe(1)
+    const s = await study.getSession(col, d, 'mixed', now)
+    expect(s.cards[0].card.id).toBe(id)
+    expect(s.learnAheadMs).toBe(20 * MIN)
+  })
+
+  it('follows the learn-ahead setting', () => {
+    learningDueIn(30 * MIN)
+    expect(learningCount()).toBe(0)
+    decks.setCollectionSettings(col, { learnAheadMinutes: 60 })
+    expect(learningCount()).toBe(1)
+  })
+})
+
 describe('decks', () => {
   it('builds nested trees and resolves deck paths', () => {
     const [leaf, created] = decks.ensureDeckPath(col, 'Economics::Micro::Supply and Demand')

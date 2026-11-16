@@ -28,6 +28,8 @@ export interface QueueContext {
   done: { new: number; review: number }
   /** End of the current study day. */
   dayEnd: number
+  /** Learning cards are offered once due within this many ms of now. */
+  learnAheadMs: number
   now: number
 }
 
@@ -49,12 +51,13 @@ export function shuffle<T>(a: T[]): T[] {
   return a
 }
 
-export function selectToday<T extends Candidate>(cards: T[], { preset, done, dayEnd, now }: QueueContext): TodaysQueue<T> {
+export function selectToday<T extends Candidate>(cards: T[], { preset, done, dayEnd, learnAheadMs, now }: QueueContext): TodaysQueue<T> {
   const open = cards.filter((c) => isAvailable(c, now))
   const byDue = (a: T, b: T) => a.due - b.due
-  const learning = open
-    .filter((c) => (c.state === CardState.Learning || c.state === CardState.Relearning) && c.due < dayEnd)
-    .sort(byDue)
+  const learningToday = open.filter(
+    (c) => (c.state === CardState.Learning || c.state === CardState.Relearning) && c.due < dayEnd
+  )
+  const learning = learningToday.filter((c) => c.due <= now + learnAheadMs).sort(byDue)
   let review = open.filter((c) => c.state === CardState.Review && c.due < dayEnd).sort(byDue)
   let fresh = open.filter((c) => c.state === CardState.New)
   if (preset.newOrder === 'random') shuffle(fresh)
@@ -62,8 +65,9 @@ export function selectToday<T extends Candidate>(cards: T[], { preset, done, day
 
   if (preset.burySiblings) {
     // One card per note in new/review (learning cards always shown), before the limits: otherwise
-    // a reverse pair would use two slots for the one card shown.
-    const seen = new Set(learning.map((c) => c.note_id))
+    // a reverse pair would use two slots for the one card shown. A learning card held back by
+    // learn-ahead still claims its note: it comes back later today.
+    const seen = new Set(learningToday.map((c) => c.note_id))
     const dedupe = (rows: T[]) => rows.filter((c) => (seen.has(c.note_id) ? false : (seen.add(c.note_id), true)))
     review = dedupe(review)
     fresh = dedupe(fresh)
@@ -96,9 +100,11 @@ export function doneTodayByDeck(col: Collection, start: number, deckIds?: Id[]):
   return new Map(rows.map((r) => [r.deck_id, { new: r.nd, review: r.rd }]))
 }
 
+export const learnAheadMsOf = (minutes: number): number => Math.max(0, minutes) * 60_000
+
 export function loadTodaysQueue(col: Collection, deckId: Id, now: number): TodaysQueue<Candidate> {
   const ids = subtreeIds(col, deckId)
-  const { dayStartHour } = getCollectionSettings(col)
+  const { dayStartHour, learnAheadMinutes } = getCollectionSettings(col)
   const cards = col.all<Candidate>(`${SELECT_CANDIDATES} WHERE n.deck_id IN (${ph(ids.length)})`, ids)
   const done = { new: 0, review: 0 }
   for (const d of doneTodayByDeck(col, dayStart(now, dayStartHour), ids).values()) {
@@ -111,6 +117,7 @@ export function loadTodaysQueue(col: Collection, deckId: Id, now: number): Today
     preset: inheritedPreset(decks, presets, deckId).config,
     done,
     dayEnd: nextDayStart(now, dayStartHour),
+    learnAheadMs: learnAheadMsOf(learnAheadMinutes),
     now
   })
 }

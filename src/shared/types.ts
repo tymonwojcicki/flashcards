@@ -30,7 +30,7 @@ export interface Deck {
 export interface DeckCounts {
   /** New cards available to study today (after daily limit). */
   new: number
-  /** Learning/relearning cards due before the end of the study day. */
+  /** Learning/relearning cards due within the learn-ahead limit from now. */
   learning: number
   /** Review cards due today (after daily limit). */
   review: number
@@ -91,6 +91,8 @@ export interface StudySession {
   cards: StudyCard[]
   /** Whether answers in this mode change the schedule. */
   affectsSchedule: boolean
+  /** Learn-ahead limit: a waiting learning card due within this many ms is shown right away. */
+  learnAheadMs: number
 }
 
 export interface AnswerResult {

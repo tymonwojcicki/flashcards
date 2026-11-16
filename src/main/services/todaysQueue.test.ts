@@ -24,6 +24,7 @@ const ctx = (over: Partial<QueueContext['preset']> = {}, done = { new: 0, review
   preset: { ...DEFAULT_PRESET_CONFIG, ...over },
   done,
   dayEnd: DAY_END,
+  learnAheadMs: 20 * 60_000,
   now: NOW
 })
 const ids = (cs: Candidate[]) => cs.map((c) => c.id)
@@ -78,8 +79,29 @@ describe("Today's Queue selection", () => {
       card('r1', { state: CardState.Review, due: 1 }),
       card('rx', { state: CardState.Review, due: DAY_END })
     ]
-    const q = selectToday(cards, ctx())
+    const q = selectToday(cards, { ...ctx(), learnAheadMs: DAY_END })
     expect([ids(q.learning), ids(q.review)]).toEqual([['l1', 'l2'], ['r1', 'r2']])
+  })
+
+  it('offers a learning card only once it is due within learn-ahead', () => {
+    const MIN = 60_000
+    const cards = [
+      card('soon', { state: CardState.Learning, due: NOW + 10 * MIN }),
+      card('edge', { state: CardState.Relearning, due: NOW + 20 * MIN }),
+      card('later', { state: CardState.Learning, due: NOW + 21 * MIN })
+    ]
+    const day = { ...ctx(), dayEnd: NOW + 24 * 60 * MIN }
+    expect(ids(selectToday(cards, day).learning)).toEqual(['soon', 'edge'])
+    expect(ids(selectToday(cards, { ...day, learnAheadMs: 0 }).learning)).toEqual([])
+  })
+
+  it('bury on: a learning card held back by learn-ahead still hides its siblings', () => {
+    const cards = [
+      card('l', { note_id: 'a', state: CardState.Learning, due: NOW + 6 * 3_600_000 }),
+      card('na', { note_id: 'a' })
+    ]
+    const q = selectToday(cards, { ...ctx(), dayEnd: NOW + 24 * 3_600_000 })
+    expect([q.learning, q.new]).toEqual([[], []])
   })
 
   it('orders new cards by position then direction, or randomly', () => {
