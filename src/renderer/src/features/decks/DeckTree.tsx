@@ -193,7 +193,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
     { label: 'Browse cards', icon: <Search size={16} />, onSelect: () => navigate({ name: 'browse', deckId: d.id }) },
     { label: 'Add sub-deck', icon: <FolderPlus size={16} />, onSelect: () => onAddSub(d) },
     { type: 'separator' },
-    { label: 'Rename', icon: <Pencil size={16} />, hotkey: 'F2', onSelect: () => startRename(d) },
+    { label: 'Rename', icon: <Pencil size={16} />, onSelect: () => startRename(d) },
     { label: 'Move to…', icon: <FolderInput size={16} />, onSelect: () => onMove(d) },
     {
       label: 'Deck options',
@@ -268,14 +268,6 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
         e.preventDefault()
         if (d.children.length > 0 && !isCollapsed(d)) void setCollapsed(d, true)
         else if (d.parentId) focusRow(d.parentId)
-        break
-      case 'F2':
-        e.preventDefault()
-        startRename(d)
-        break
-      case 'Delete':
-        e.preventDefault()
-        void remove(d)
         break
     }
   }
