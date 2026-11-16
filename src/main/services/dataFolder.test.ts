@@ -116,8 +116,8 @@ beforeEach(() => {
   study.clearUndo()
   session = newSession()
 })
-afterEach(() => {
-  session.dispose()
+afterEach(async () => {
+  await session.dispose()
   vi.useRealTimers()
 })
 
@@ -225,7 +225,7 @@ describe.each(ADAPTERS)('$name store', ({ folder }) => {
       expect(state).toMatchObject({ lock: { kind: 'readonly', device: 'OTHER-PC' }, readOnly: true })
       vi.advanceTimersByTime(HEARTBEAT_MS * 2)
       expect(store.lock()).toMatchObject({ device: 'OTHER-PC' })
-      session.release()
+      await session.release()
       expect(store.lock()).toMatchObject({ device: 'OTHER-PC' })
     })
   })
@@ -243,7 +243,16 @@ describe.each(ADAPTERS)('$name store', ({ folder }) => {
       await vi.advanceTimersByTimeAsync(HEARTBEAT_MS * 3)
       expect(store.lock()).toMatchObject({ device: 'OTHER-PC' })
       // Releasing must not delete the other device's lock.
-      session.release()
+      await session.release()
+      expect(store.lock()).toMatchObject({ device: 'OTHER-PC' })
+    })
+
+    it('a takeover since the last heartbeat survives release', async () => {
+      const store = folder()
+      await session.open(store)
+      vi.advanceTimersByTime(1000)
+      store.setLock('OTHER-PC', Date.now(), Date.now())
+      await session.release()
       expect(store.lock()).toMatchObject({ device: 'OTHER-PC' })
     })
 
@@ -253,7 +262,7 @@ describe.each(ADAPTERS)('$name store', ({ folder }) => {
       const first = store.lock()!.heartbeat
       await vi.advanceTimersByTimeAsync(HEARTBEAT_MS)
       expect(store.lock()!.heartbeat).toBeGreaterThan(first)
-      session.release()
+      await session.release()
       expect(store.lock()).toBeNull()
     })
   })

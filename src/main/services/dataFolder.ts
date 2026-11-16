@@ -104,6 +104,8 @@ export class DataFolderSession {
   private heartbeat: ReturnType<typeof setInterval> | null = null
   private backupTimer: ReturnType<typeof setInterval> | null = null
   private changedSinceBackup = false
+  /** `since` of the lock this session wrote; identifies our lock file. */
+  private lockSince = 0
 
   constructor(private opts: DataFolderOptions) {}
 
@@ -113,7 +115,7 @@ export class DataFolderSession {
 
   /** Open the collection in `store`, taking the lock unless another device holds it. */
   async open(store: DataStore): Promise<void> {
-    this.release()
+    await this.release()
     this.store = store
     clearUndo()
     // Check the lock before touching the folder: one locked by another device is never written to.
@@ -172,6 +174,7 @@ export class DataFolderSession {
     this.lockStatus = { kind: 'ok' }
     if (!this.folder) return
     const since = Date.now()
+    this.lockSince = since
     const write = async (): Promise<boolean> => {
       const current = await this.readLock()
       if (current && isTakenOver(current, this.opts.device(), since)) {
@@ -194,15 +197,18 @@ export class DataFolderSession {
     this.heartbeat = null
   }
 
-  /** Stop the heartbeat and remove our lock (if we hold it). */
-  release(): void {
+  /** Stop the heartbeat and remove the lock, only if the file is still the one we wrote. */
+  async release(): Promise<void> {
     this.stopHeartbeat()
-    if (this.folder && this.col && !this.col.readOnly) void this.store.remove(LOCK_FILE)
+    if (!this.folder || !this.col || this.col.readOnly) return
+    // Another device may have pressed "Open anyway" since our last heartbeat: its lock must survive.
+    const lock = await this.readLock()
+    if (lock && lock.device === this.opts.device() && lock.since === this.lockSince) await this.store.remove(LOCK_FILE)
   }
 
   /** Release the lock and stop every timer. */
-  dispose(): void {
-    this.release()
+  async dispose(): Promise<void> {
+    await this.release()
     if (this.backupTimer) clearInterval(this.backupTimer)
     this.backupTimer = null
   }

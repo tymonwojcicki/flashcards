@@ -69,7 +69,7 @@ async function start(): Promise<void> {
   })
   window.addEventListener('pagehide', () => {
     void backend.col.flush()
-    backend.session.release()
+    void backend.session.release()
   })
   // Ask the browser not to evict IndexedDB data.
   void navigator.storage?.persist?.()

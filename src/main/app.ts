@@ -50,7 +50,7 @@ class AppState {
     } catch (e) {
       console.error('Failed to save collection on shutdown', e)
     }
-    this.session.dispose()
+    await this.session.dispose()
   }
 }
 

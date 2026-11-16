@@ -49,8 +49,11 @@ export const isAvailable = (c: Availability, now: number): boolean =>
 export const isDue = (c: Availability & Pick<Candidate, 'state' | 'due'>, dayEnd: number, now: number): boolean =>
   c.state !== CardState.New && c.due < dayEnd && isAvailable(c, now)
 
+/** {@link isAvailable} for queries over `cards c`; bind `[now]`. */
+export const AVAILABLE_SQL = 'c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)'
+
 /** {@link isDue} for queries over `cards c` that filter in SQL; bind {@link dueParams}. */
-export const DUE_SQL = 'c.state != 0 AND c.due < ? AND c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)'
+export const DUE_SQL = `c.state != 0 AND c.due < ? AND ${AVAILABLE_SQL}`
 export const dueParams = (dayEnd: number, now: number): number[] => [dayEnd, now]
 
 /** Held back until a later study day; bind `[now]`. */

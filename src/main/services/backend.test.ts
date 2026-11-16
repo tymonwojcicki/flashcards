@@ -83,6 +83,12 @@ describe('decks', () => {
     expect(decks.allDecks(col)).toHaveLength(3)
   })
 
+  it('deck names match ignoring case beyond ASCII', () => {
+    const [id] = decks.ensureDeckPath(col, 'Ärzte::Übung')
+    expect(decks.createDeckPath(col, 'ärzte::übung', null)).toBe(id)
+    expect(decks.deckPathPlanner(col)('ÄRZTE::ÜBUNG::Neu')).toBe(1)
+  })
+
   it('createDeckPath creates the missing decks together, or none of them', () => {
     col.run(`CREATE TRIGGER no_c BEFORE INSERT ON decks WHEN NEW.name = 'C' BEGIN SELECT RAISE(ABORT, 'boom'); END`)
     expect(() => decks.createDeckPath(col, 'A::B::C', null)).toThrow()

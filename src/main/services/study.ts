@@ -17,7 +17,7 @@ import { deckPath, getCollectionSettings, resolvePreset, subtreeIds } from './de
 import { toCard, toNote, type CardRow } from './notes'
 import { preview, retrievability, reviewCard, reviveCard, serializeCard } from './scheduler'
 import { dayKey, dayStart, nextDayStart } from './time'
-import { isDue, learnAheadMsOf, loadTodaysQueue, shuffle } from './todaysQueue'
+import { AVAILABLE_SQL, isDue, learnAheadMsOf, loadTodaysQueue, shuffle } from './todaysQueue'
 
 type JoinedRow = CardRow & {
   deck_id: string
@@ -60,13 +60,11 @@ function toStudyCard(col: Collection, r: JoinedRow, pathCache: Map<string, strin
 
 export async function getSession(col: Collection, deckId: Id, mode: StudyMode, now = Date.now()): Promise<StudySession> {
   const ids = subtreeIds(col, deckId)
-  const cfg = resolvePreset(col, deckId).config
   const learnAheadMs = learnAheadMsOf(getCollectionSettings(col).learnAheadMinutes)
   const inDecks = `n.deck_id IN (${ph(ids.length)})`
-  const avail = `c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)`
   const q = (extra: string, params: SqlValue[], order: string, limit?: number) =>
     col.all<JoinedRow>(
-      `${SELECT_JOINED} WHERE ${inDecks} AND ${avail} AND ${extra} ORDER BY ${order}${limit !== undefined ? ' LIMIT ' + Math.max(0, limit) : ''}`,
+      `${SELECT_JOINED} WHERE ${inDecks} AND ${AVAILABLE_SQL} AND ${extra} ORDER BY ${order}${limit !== undefined ? ' LIMIT ' + Math.max(0, limit) : ''}`,
       [...ids, now, ...params]
     )
   const pathCache = new Map<string, string[]>()
@@ -76,7 +74,8 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
     return { mode, deckId, affectsSchedule: false, learnAheadMs, cards: wrap(shuffle(q('1=1', [], 'c.position'))) }
   }
   if (mode === 'weak') {
-    const rows = q('c.state != 0', [], 'c.lapses DESC')
+    const cfg = resolvePreset(col, deckId).config
+    const rows =q('c.state != 0', [], 'c.lapses DESC')
     const scored: [number, JoinedRow][] = []
     for (const r of rows) {
       const ret = (await retrievability(cfg, reviveCard(r.fsrs, r.due), new Date(now))) ?? 1

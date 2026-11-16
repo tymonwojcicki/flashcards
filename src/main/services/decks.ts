@@ -146,14 +146,18 @@ export function deckPathParts(pathStr: string): string[] {
     .filter(Boolean)
 }
 
-/** SQLite's NOCASE: folds ASCII letters only. */
-const nocase = (s: string): string => s.replace(/[A-Z]/g, (c) => c.toLowerCase())
+/** Deck names match ignoring case, for every alphabet ("Ärzte" = "ärzte"); SQLite's NOCASE folds ASCII only. */
+const nocase = (s: string): string => s.toLowerCase()
 
-const findChild = (col: Collection, parent: Id | null, name: string): Id | undefined =>
-  col.get<{ id: string }>(
-    `SELECT id FROM decks WHERE name = ? COLLATE NOCASE AND ${parent ? 'parent_id = ?' : 'parent_id IS NULL'}`,
-    parent ? [name, parent] : [name]
-  )?.id
+const findChild = (col: Collection, parent: Id | null, name: string): Id | undefined => {
+  const key = nocase(name)
+  return col
+    .all<{ id: string; name: string }>(
+      `SELECT id, name FROM decks WHERE ${parent ? 'parent_id = ?' : 'parent_id IS NULL'}`,
+      parent ? [parent] : []
+    )
+    .find((d) => nocase(d.name) === key)?.id
+}
 
 /** "A::B::C" -> deck id, creating missing decks. Existing decks match case-insensitively. Returns [id, createdCount]. */
 export function ensureDeckPath(col: Collection, pathStr: string, rootParent: Id | null = null): [Id, number] {
