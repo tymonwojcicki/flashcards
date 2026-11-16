@@ -14,7 +14,7 @@ import { MoveDialog, TagsDialog } from '@renderer/features/browse/BulkDialogs'
 const PAGE = 200
 // Narrow tables show the deck under the front text; wide ones get a Deck column.
 const COLS =
-  'grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_5.75rem_4.5rem_5.25rem] @4xl:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.1fr)_5.75rem_5rem_5.25rem]'
+  'grid-cols-[minmax(0,1fr)_5.75rem_4.5rem_5.25rem] @4xl:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_5.75rem_5rem_5.25rem]'
 
 const STATE_OPTIONS = [
   { value: 'all', label: 'All states' },
@@ -423,7 +423,6 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
             )}
           >
             <span>Front</span>
-            <span>Back</span>
             <span className="hidden @4xl:block">Deck</span>
             <span>State</span>
             <span className="text-right">Due</span>
@@ -463,7 +462,6 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
               const foc = focusedId === r.cardId
               const due = dueInfo(r)
               const front = plainText(r.front)
-              const back = plainText(r.back)
               const deckFull = deckPathLabel(r.deckPath)
               return (
                 <div
@@ -495,11 +493,8 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
                       {r.deckPath[r.deckPath.length - 1]}
                     </span>
                   </span>
-                  <span className="truncate text-muted" title={back}>
-                    {back}
-                  </span>
                   <span className="hidden min-w-0 @4xl:block" title={deckFull}>
-                    <span className="block truncate text-xs text-muted">{r.deckPath[r.deckPath.length - 1]}</span>
+                    <span className="block truncate text-xs text-muted">{deckFull}</span>
                     {r.tags.length > 0 && (
                       <span className="block truncate text-[0.68rem] text-muted/80" title={r.tags.join(', ')}>
                         {r.tags.join(' · ')}
