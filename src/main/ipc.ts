@@ -12,19 +12,12 @@ import { backup } from './services/backup'
 import { safeFileName } from './services/backupCore'
 import * as trash from './services/trash'
 import { onOpen } from './services/startup'
-import { MEDIA_SCHEME, nodeMediaPort, resolveMedia, saveMediaBytes, saveMediaFile } from "./services/media"
+import { MEDIA_SCHEME, nodeMediaPort, resolveMedia, saveCsvImage, saveMediaBytes, saveMediaFile } from "./services/media"
 
 type Handlers = { [K in keyof Api]: (...args: Parameters<Api[K]>) => ReturnType<Api[K]> | Promise<ReturnType<Api[K]>> }
 
 const win = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
 const c = () => state.col
-
-/** Copy an image referenced relative to an imported CSV into the media store. */
-async function resolveCsvImage(baseDir: string, src: string): Promise<string | null> {
-  const abs = path.resolve(baseDir, src)
-  if (!fs.existsSync(abs)) return null
-  return saveMediaFile(c().dir, abs)
-}
 
 /** Backup file chosen by pickBackup, waiting for the user's confirmation. */
 let pendingBackup: Uint8Array | null = null
@@ -145,7 +138,7 @@ const handlers: Handlers = {
     return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8').replace(/^﻿/, '') }
   },
   importRows: (rows, deckId, baseDir) =>
-    io.importRows(c(), rows, deckId, nodeMediaPort(c().dir), baseDir ? (src) => resolveCsvImage(baseDir, src) : null),
+    io.importRows(c(), rows, deckId, nodeMediaPort(c().dir), baseDir ? (src) => saveCsvImage(c().dir, baseDir, src) : null),
   exportDeck: async (deckId, format, includeProgress) => {
     const name = safeFileName(decks.getDeck(c(), deckId)?.name ?? 'deck')
     const r = await dialog.showSaveDialog(win(), {

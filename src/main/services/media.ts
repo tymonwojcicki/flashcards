@@ -32,6 +32,17 @@ export function saveMediaFile(dataDir: string, src: string): Promise<string> {
   return saveMediaBytes(dataDir, new Uint8Array(fs.readFileSync(src)), path.extname(src))
 }
 
+/** Copy an image referenced by an imported CSV into the media store. Only files inside the
+ *  CSV's folder (or its sub-folders) are taken, so a shared CSV can't pull in other files. */
+export async function saveCsvImage(dataDir: string, csvDir: string, src: string): Promise<string | null> {
+  if (path.isAbsolute(src)) return null
+  const abs = path.resolve(csvDir, src)
+  const rel = path.relative(csvDir, abs)
+  if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return null
+  if (!fs.existsSync(abs)) return null
+  return saveMediaFile(dataDir, abs)
+}
+
 /** Resolve a media URL / filename to a safe absolute path inside the media dir. */
 export function resolveMedia(dataDir: string, nameOrUrl: string): string | null {
   const name = mediaNameFromUrl(nameOrUrl)
