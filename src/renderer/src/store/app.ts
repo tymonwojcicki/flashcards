@@ -107,7 +107,7 @@ export const useApp = create<AppState>((set, get) => ({
   toggleHints: () => {
     const on = !get().prefs.showHotkeyHints
     void get().setPrefs({ showHotkeyHints: on })
-    toast(on ? 'Hotkey hints on' : 'Hotkey hints off', { kind: 'info' })
+    toast(on ? 'Hotkey hints on' : 'Hotkey hints off', { kind: 'info', key: 'hints' })
   },
 
   toggleTheme: () => {

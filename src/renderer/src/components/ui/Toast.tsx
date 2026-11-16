@@ -5,6 +5,8 @@ import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 export interface ToastOptions {
   kind?: 'info' | 'success' | 'error'
   action?: { label: string; onClick: () => void }
+  /** Toasts sharing a key replace each other instead of stacking. */
+  key?: string
 }
 
 interface ToastItem extends ToastOptions {
@@ -18,15 +20,29 @@ let nextId = 1
 
 /** Plays the exit animation (160ms), then removes the toast. */
 function dismiss(id: number): void {
+  clearTimeout(timers.get(id))
+  timers.delete(id)
   useToasts.setState((s) => ({ items: s.items.map((t) => (t.id === id ? { ...t, closing: true } : t)) }))
   setTimeout(() => useToasts.setState((s) => ({ items: s.items.filter((t) => t.id !== id) })), 160)
 }
 
-/** Show a transient message (auto-dismisses after 4s). */
+const timers = new Map<number, ReturnType<typeof setTimeout>>()
+
+/**
+ * Show a transient message (auto-dismisses after 4s). A toast with the same `key` as one already
+ * on screen replaces it in place instead of stacking (e.g. "Hotkey hints on" → "off").
+ */
 export function toast(message: string, opts: ToastOptions = {}): void {
+  const existing = opts.key ? useToasts.getState().items.find((t) => t.key === opts.key && !t.closing) : undefined
+  if (existing) {
+    clearTimeout(timers.get(existing.id))
+    useToasts.setState((s) => ({ items: s.items.map((t) => (t.id === existing.id ? { ...t, ...opts, message } : t)) }))
+    timers.set(existing.id, setTimeout(() => dismiss(existing.id), 4000))
+    return
+  }
   const id = nextId++
   useToasts.setState((s) => ({ items: [...s.items.slice(-3), { id, message, ...opts }] }))
-  setTimeout(() => dismiss(id), 4000)
+  timers.set(id, setTimeout(() => dismiss(id), 4000))
 }
 
 const ICONS = { info: Info, success: CheckCircle2, error: AlertCircle }
