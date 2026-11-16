@@ -463,11 +463,30 @@ textarea:focus-visible,
 }
 /* All text buttons: plain text at rest; on hover the label turns into the accent gradient and a
    soft light band sweeps across once. */
+/* Shine tuning for accents whose shades are close together. */
+:root[data-accent="aqua"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 30%);
+  --shine-band-c: color-mix(in srgb, var(--accent-2), white 62%);
+}
+:root[data-accent="iris"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 25%);
+  --shine-band-c: color-mix(in srgb, var(--accent-2), white 60%);
+}
+[data-theme="dark"][data-accent="aqua"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-1), var(--accent) 40%);
+  --shine-band-c: color-mix(in srgb, var(--accent), white 75%);
+}
+[data-theme="dark"][data-accent="iris"] {
+  --shine-mid-c: color-mix(in srgb, var(--accent-2), var(--accent) 35%);
+  --shine-band-c: color-mix(in srgb, var(--accent), white 72%);
+}
 @utility btn-shine {
   color: var(--text);
   & .btn-label {
-    --shine-mid: color-mix(in srgb, var(--accent), var(--accent-2) 45%);
-    --shine-band: color-mix(in srgb, var(--accent-1), white 35%);
+    /* Per-accent shine colours (defaults = Ember). Aqua/Iris override below: their accent shades
+       are close together, so they need a lighter band to read as a sweep, not a colour change. */
+    --shine-mid: var(--shine-mid-c, color-mix(in srgb, var(--accent), var(--accent-2) 45%));
+    --shine-band: var(--shine-band-c, color-mix(in srgb, var(--accent-1), white 35%));
   }
   & svg { transition: color 200ms var(--ease-out); }
   &:hover:not(:disabled) svg { color: var(--accent-1); }
