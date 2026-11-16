@@ -33,6 +33,7 @@ const STATE_OPTIONS = [
   { value: 'learning', label: <StateLabel dot="bg-hard" text="Learning" /> },
   { value: 'review', label: <StateLabel dot="bg-good" text="Review" /> },
   { value: 'due', label: <StateLabel dot="bg-again" text="Due" /> },
+  { value: 'buried', label: <StateLabel dot="bg-muted" text="Buried" /> },
   { value: 'suspended', label: <StateLabel dot="bg-muted" text="Suspended" /> }
 ]
 
@@ -46,6 +47,8 @@ function stateQuery(v: string): BrowseQuery['state'] {
       return CardState.Review
     case 'due':
       return 'due'
+    case 'buried':
+      return 'buried'
     case 'suspended':
       return 'suspended'
     default:

@@ -186,7 +186,7 @@ export interface BrowseQuery {
   deckId?: Id | null // includes subtree
   search?: string
   tag?: string
-  state?: CardState | 'suspended' | 'due'
+  state?: CardState | 'suspended' | 'buried' | 'due'
   limit?: number
   offset?: number
 }

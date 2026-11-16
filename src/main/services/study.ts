@@ -17,7 +17,7 @@ import { deckPath, getCollectionSettings, resolvePreset, subtreeIds } from './de
 import { toCard, toNote, type CardRow } from './notes'
 import { preview, retrievability, reviewCard, reviveCard, serializeCard } from './scheduler'
 import { dayKey, dayStart, nextDayStart } from './time'
-import { learnAheadMsOf, loadTodaysQueue, shuffle } from './todaysQueue'
+import { isDue, learnAheadMsOf, loadTodaysQueue, shuffle } from './todaysQueue'
 
 type JoinedRow = CardRow & {
   deck_id: string
@@ -250,15 +250,17 @@ export function getStats(col: Collection, deckId: Id | null, now = Date.now()): 
   }
 
   const forecast: { day: string; due: number }[] = []
-  const due = col.all<{ due: number }>(
-    `SELECT c.due FROM cards c JOIN notes n ON n.id = c.note_id
+  const scheduled = col.all<{ state: number; due: number; suspended: number; buried_until: number | null }>(
+    `SELECT c.state, c.due, c.suspended, c.buried_until FROM cards c JOIN notes n ON n.id = c.note_id
      WHERE c.state != 0 AND c.suspended = 0 ${deckFilter}`,
     dp
   )
   const fmap = new Map<string, number>()
   const today = dayKey(now, dayStartHour)
-  for (const { due: d } of due) {
-    const k = d < now ? today : dayKey(d, dayStartHour)
+  const dayEnd = nextDayStart(now, dayStartHour)
+  for (const c of scheduled) {
+    // Due counts today; anything else (including a buried card) on the day it next comes due.
+    const k = isDue(c, dayEnd, now) ? today : dayKey(Math.max(c.due, c.buried_until ?? 0), dayStartHour)
     fmap.set(k, (fmap.get(k) ?? 0) + 1)
   }
   let cursor = dayStart(now, dayStartHour)

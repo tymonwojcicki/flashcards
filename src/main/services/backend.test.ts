@@ -11,6 +11,7 @@ import { CardState, Rating } from '../../shared/types'
 import { foreignLock, Lock, LOCK_FILE } from './lock'
 import { prune } from './backup'
 import type { MediaPort } from "./mediaCore"
+import { nextDayStart } from './time'
 
 const WASM = path.resolve('node_modules/sql.js/dist/sql-wasm.wasm')
 let col: Collection
@@ -221,6 +222,49 @@ describe('decks', () => {
     const p = decks.createPreset(col, 'Exam', { ...decks.resolvePreset(col, leaf).config, newPerDay: 5 })
     decks.setDeckPreset(col, root, p.id)
     expect(decks.resolvePreset(col, leaf).config.newPerDay).toBe(5)
+  })
+})
+
+describe('buried cards are never due', () => {
+  // Noon, so "in 1 hour" stays inside the study day whatever the day-start hour.
+  const now = new Date(2026, 0, 15, 12).getTime()
+  const HOUR = 3_600_000
+  const reviews = () => {
+    const [d] = decks.ensureDeckPath(col, 'B')
+    const ids = ['buried', 'open'].map((front) => {
+      const note = notes.createNote(col, { deckId: d, front, back: 'a', tags: [], reverse: false })
+      const { id } = col.get<{ id: string }>('SELECT id FROM cards WHERE note_id = ?', [note.id])!
+      col.run('UPDATE cards SET state = 2, due = ? WHERE id = ?', [now - HOUR, id])
+      return id
+    })
+    col.run('UPDATE cards SET buried_until = ? WHERE id = ?', [tomorrow(), ids[0]])
+    return { d, buried: ids[0], open: ids[1] }
+  }
+  const tomorrow = () => nextDayStart(now, decks.getCollectionSettings(col).dayStartHour)
+  const ids = (q: Parameters<typeof notes.browse>[1]) => notes.browse(col, q, now).rows.map((r) => r.cardId)
+
+  it('leaves buried cards out of Browse "due" and lists them under "buried"', () => {
+    const { buried, open } = reviews()
+    expect(ids({ state: 'due' })).toEqual([open])
+    expect(ids({ state: 'buried' })).toEqual([buried])
+  })
+
+  it("leaves buried cards out of today's forecast", () => {
+    reviews()
+    expect(study.getStats(col, null, now).forecast[0].due).toBe(1)
+  })
+
+  it('Browse "due", the forecast and the deck count agree', async () => {
+    const { d } = reviews()
+    const dueInBrowse = notes.browse(col, { state: 'due' }, now).total
+    expect(study.getStats(col, null, now).forecast[0].due).toBe(dueInBrowse)
+    expect(decks.getDeckTree(col, now)[0].counts.review).toBe(dueInBrowse)
+    expect((await study.getSession(col, d, 'review', now)).cards).toHaveLength(dueInBrowse)
+  })
+
+  it('a card whose bury has ended is due again', () => {
+    const { buried, open } = reviews()
+    expect(notes.browse(col, { state: 'due' }, tomorrow()).rows.map((r) => r.cardId).sort()).toEqual([buried, open].sort())
   })
 })
 

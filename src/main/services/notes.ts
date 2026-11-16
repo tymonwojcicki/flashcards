@@ -5,6 +5,7 @@ import { CardState, type BrowseQuery, type BrowseRow, type Card, type Id, type N
 import { deckPath, getCollectionSettings, subtreeIds } from './decks'
 import { nextDayStart } from './time'
 import { trashNotes } from './trash'
+import { BURIED_SQL, DUE_SQL, dueParams } from './todaysQueue'
 
 // Tags are stored space-delimited with surrounding spaces: " a b c " (enables LIKE '% a %').
 export const encodeTags = (tags: string[]): string => {
@@ -183,7 +184,7 @@ export function listTags(col: Collection, deckId?: Id | null): string[] {
 /** Escape LIKE wildcards so a search for "50%" or "a_b" matches literally (use with ESCAPE '\\'). */
 const likeEscape = (s: string): string => s.replace(/[\\%_]/g, '\\$&')
 
-export function browse(col: Collection, q: BrowseQuery): { rows: BrowseRow[]; total: number } {
+export function browse(col: Collection, q: BrowseQuery, now = Date.now()): { rows: BrowseRow[]; total: number } {
   const where: string[] = []
   const params: SqlValue[] = []
   if (q.deckId) {
@@ -203,9 +204,12 @@ export function browse(col: Collection, q: BrowseQuery): { rows: BrowseRow[]; to
     params.push(`% ${likeEscape(q.tag)} %`)
   }
   if (q.state === 'suspended') where.push('c.suspended = 1')
-  else if (q.state === 'due') {
-    where.push('c.state != 0 AND c.due < ? AND c.suspended = 0')
-    params.push(nextDayStart(Date.now(), getCollectionSettings(col).dayStartHour))
+  else if (q.state === 'buried') {
+    where.push(BURIED_SQL)
+    params.push(now)
+  } else if (q.state === 'due') {
+    where.push(DUE_SQL)
+    params.push(...dueParams(nextDayStart(now, getCollectionSettings(col).dayStartHour), now))
   } else if (q.state !== undefined) {
     where.push('c.state = ?')
     params.push(q.state)

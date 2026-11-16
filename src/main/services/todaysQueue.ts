@@ -40,8 +40,21 @@ export interface TodaysQueue<T> {
   new: T[]
 }
 
-export const isAvailable = (c: Candidate, now: number): boolean =>
+type Availability = Pick<Candidate, 'suspended' | 'buried_until'>
+
+export const isAvailable = (c: Availability, now: number): boolean =>
   !c.suspended && (c.buried_until === null || c.buried_until <= now)
+
+/** Due: a learning, relearning or review card scheduled before the study day ends, neither suspended nor buried. */
+export const isDue = (c: Availability & Pick<Candidate, 'state' | 'due'>, dayEnd: number, now: number): boolean =>
+  c.state !== CardState.New && c.due < dayEnd && isAvailable(c, now)
+
+/** {@link isDue} for queries over `cards c` that filter in SQL; bind {@link dueParams}. */
+export const DUE_SQL = 'c.state != 0 AND c.due < ? AND c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)'
+export const dueParams = (dayEnd: number, now: number): number[] => [dayEnd, now]
+
+/** Held back until a later study day; bind `[now]`. */
+export const BURIED_SQL = 'c.buried_until > ?'
 
 export function shuffle<T>(a: T[]): T[] {
   for (let i = a.length - 1; i > 0; i--) {
@@ -52,14 +65,12 @@ export function shuffle<T>(a: T[]): T[] {
 }
 
 export function selectToday<T extends Candidate>(cards: T[], { preset, done, dayEnd, learnAheadMs, now }: QueueContext): TodaysQueue<T> {
-  const open = cards.filter((c) => isAvailable(c, now))
   const byDue = (a: T, b: T) => a.due - b.due
-  const learningToday = open.filter(
-    (c) => (c.state === CardState.Learning || c.state === CardState.Relearning) && c.due < dayEnd
-  )
+  const due = cards.filter((c) => isDue(c, dayEnd, now))
+  const learningToday = due.filter((c) => c.state === CardState.Learning || c.state === CardState.Relearning)
   const learning = learningToday.filter((c) => c.due <= now + learnAheadMs).sort(byDue)
-  let review = open.filter((c) => c.state === CardState.Review && c.due < dayEnd).sort(byDue)
-  let fresh = open.filter((c) => c.state === CardState.New)
+  let review = due.filter((c) => c.state === CardState.Review).sort(byDue)
+  let fresh = cards.filter((c) => c.state === CardState.New && isAvailable(c, now))
   if (preset.newOrder === 'random') shuffle(fresh)
   else fresh.sort((a, b) => a.position - b.position || (a.direction < b.direction ? -1 : a.direction > b.direction ? 1 : 0))
 
