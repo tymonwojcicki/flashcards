@@ -254,7 +254,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 pt-5 pb-10">
         <div className="flex min-w-0 flex-col gap-5">
           <div className="relative z-30 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
+            <div className="flex min-h-8 items-center gap-2">
               <label className="text-sm font-semibold text-text" onClick={() => deckInput.current?.focus()}>
                 Deck
               </label>

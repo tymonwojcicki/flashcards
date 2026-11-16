@@ -45,7 +45,7 @@ export function TagInput({ tags, onChange, suggestions = [], label = 'Tags', pla
 
   return (
     <div className={clsx('relative flex flex-col gap-2', className)}>
-      <div className="flex min-h-8 items-center justify-between gap-2">
+      <div className="flex min-h-8 items-center gap-2">
         <label className="text-sm font-semibold text-text" onClick={() => inputRef.current?.focus()}>
           {label}
         </label>
