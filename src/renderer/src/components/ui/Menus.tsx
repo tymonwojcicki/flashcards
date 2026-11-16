@@ -5,7 +5,18 @@ import * as CM from '@radix-ui/react-context-menu'
 import { Kbd } from './Kbd'
 
 export type MenuEntry =
-  | { type?: 'item'; label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean; hotkey?: string; disabled?: boolean; description?: string }
+  | {
+      type?: 'item'
+      label: string
+      icon?: ReactNode
+      onSelect: () => void
+      danger?: boolean
+      hotkey?: string
+      disabled?: boolean
+      description?: string
+      /** Number shown on the right, e.g. cards in a study mode. null = still loading. */
+      count?: number | null
+    }
   | { type: 'separator' }
 
 const CONTENT = 'anim-menu neu-raised z-[80] min-w-[12rem] rounded-2xl p-1.5'
@@ -22,12 +33,27 @@ function itemClass(danger?: boolean): string {
 }
 
 function ItemText({ it }: { it: Extract<MenuEntry, { type?: 'item' }> }): React.JSX.Element {
-  if (!it.description) return <span className="flex-1">{it.label}</span>
-  return (
+  const text = !it.description ? (
+    <span className="flex-1">{it.label}</span>
+  ) : (
     <span className="flex flex-1 flex-col">
       <span>{it.label}</span>
       <span className="text-xs font-normal text-muted">{it.description}</span>
     </span>
+  )
+  if (it.count === undefined) return text
+  return (
+    <>
+      {text}
+      <span
+        className={clsx(
+          'ml-4 min-w-[2ch] text-right font-mono text-sm font-semibold tabular-nums',
+          it.count ? 'text-text' : 'text-muted/70'
+        )}
+      >
+        {it.count ?? '…'}
+      </span>
+    </>
   )
 }
 
@@ -38,11 +64,12 @@ export interface DropdownMenuProps {
   align?: 'start' | 'center' | 'end'
   /** Called when the menu closes and would return focus to the trigger; preventDefault to keep focus elsewhere. */
   onCloseAutoFocus?: (e: Event) => void
+  onOpenChange?: (open: boolean) => void
 }
 
-export function DropdownMenu({ trigger, items, align = 'end', onCloseAutoFocus }: DropdownMenuProps): React.JSX.Element {
+export function DropdownMenu({ trigger, items, align = 'end', onCloseAutoFocus, onOpenChange }: DropdownMenuProps): React.JSX.Element {
   return (
-    <DM.Root>
+    <DM.Root onOpenChange={onOpenChange}>
       <DM.Trigger asChild>{trigger}</DM.Trigger>
       <DM.Portal>
         <DM.Content align={align} sideOffset={8} className={CONTENT} onCloseAutoFocus={onCloseAutoFocus}>

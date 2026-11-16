@@ -206,23 +206,38 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
     { label: 'Delete', icon: <Trash2 size={16} />, danger: true, onSelect: () => void remove(d) }
   ]
 
-  const studyItems = (d: DeckNode): MenuEntry[] => [
-    { label: 'Study', icon: <GraduationCap size={16} />, description: 'Due reviews and new cards', onSelect: () => study(d, 'mixed') },
-    { label: 'Review only', icon: <RotateCcw size={16} />, description: 'Due reviews, no new cards', onSelect: () => study(d, 'review') },
-    { label: 'Learn new', icon: <Sparkles size={16} />, description: 'New cards only', onSelect: () => study(d, 'learn') },
-    {
-      label: 'Practice all',
-      icon: <Zap size={16} />,
-      description: "Every card. Doesn't change your schedule.",
-      onSelect: () => study(d, 'cram')
-    },
-    {
-      label: 'Weak spots',
-      icon: <Target size={16} />,
-      description: "Cards you often forget. Doesn't change your schedule.",
-      onSelect: () => study(d, 'weak')
-    }
-  ]
+  // Weak-spot counts depend on memory strength, so they're computed when the study menu opens.
+  const [weakCounts, setWeakCounts] = useState<Record<Id, number | null>>({})
+  const loadWeak = (d: DeckNode): void => {
+    setWeakCounts((m) => ({ ...m, [d.id]: m[d.id] ?? null }))
+    window.api.getSession(d.id, 'weak').then(
+      (s) => setWeakCounts((m) => ({ ...m, [d.id]: s.cards.length })),
+      () => setWeakCounts((m) => ({ ...m, [d.id]: 0 }))
+    )
+  }
+
+  const studyItems = (d: DeckNode): MenuEntry[] => {
+    const c = d.counts
+    return [
+      { label: 'Study', icon: <GraduationCap size={16} />, description: 'Due reviews and new cards', count: c.learning + c.review + c.new, onSelect: () => study(d, 'mixed') },
+      { label: 'Review only', icon: <RotateCcw size={16} />, description: 'Due reviews, no new cards', count: c.learning + c.review, onSelect: () => study(d, 'review') },
+      { label: 'Learn new', icon: <Sparkles size={16} />, description: 'New cards only', count: c.new, onSelect: () => study(d, 'learn') },
+      {
+        label: 'Practice all',
+        icon: <Zap size={16} />,
+        description: "Every card. Doesn't change your schedule.",
+        count: c.total,
+        onSelect: () => study(d, 'cram')
+      },
+      {
+        label: 'Weak spots',
+        icon: <Target size={16} />,
+        description: "Cards you often forget. Doesn't change your schedule.",
+        count: weakCounts[d.id] ?? null,
+        onSelect: () => study(d, 'weak')
+      }
+    ]
+  }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     const target = e.target as HTMLElement
@@ -456,6 +471,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
               <span aria-hidden className="my-1.5 w-px bg-accent-contrast/25" />
               <DropdownMenu
                 items={studyItems(d)}
+                onOpenChange={(open) => open && loadWeak(d)}
                 trigger={
                   <button
                     type="button"
