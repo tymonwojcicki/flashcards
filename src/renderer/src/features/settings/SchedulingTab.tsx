@@ -467,10 +467,15 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
                 <div className="w-56 shrink-0">
                   <Select
                     aria-label={`Preset for ${d.name}`}
-                    value={d.presetId ?? '__inherit__'}
-                    onValueChange={(v) => void assign(d.id, v)}
+                    // Top-level decks have nothing to inherit from: "no choice" simply means the
+                    // Default preset. It stays unset (not pinned), so if the deck is later moved
+                    // under another deck it inherits from its new parent.
+                    value={d.presetId ?? (d.parentId ? '__inherit__' : DEFAULT_PRESET_ID)}
+                    onValueChange={(v) =>
+                      void assign(d.id, !d.parentId && v === DEFAULT_PRESET_ID ? '__inherit__' : v)
+                    }
                     options={[
-                      { value: '__inherit__', label: `Inherit (${parentName ?? 'default'})` },
+                      ...(d.parentId ? [{ value: '__inherit__', label: `Inherit (${parentName ?? 'Default'})` }] : []),
                       ...presets.map((p) => ({ value: p.id, label: p.name }))
                     ]}
                   />
