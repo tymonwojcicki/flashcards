@@ -19,6 +19,7 @@ import { dueTotal } from '@renderer/lib/decks'
 import { useEffectiveKeys } from '@renderer/lib/shortcuts'
 import type { ShortcutId } from '@renderer/lib/shortcuts'
 import { IconButton, Kbd, Switch, Tooltip } from '@renderer/components/ui'
+import { playSound } from '@renderer/lib/sound'
 
 interface NavItem {
   route: Route
