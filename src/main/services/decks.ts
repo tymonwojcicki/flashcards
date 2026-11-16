@@ -198,6 +198,9 @@ interface RawCounts {
   total: number
   newDone: number
   reviewDone: number
+  /** New / review counted once per note, as a study session does with bury siblings on. */
+  newNotes: number
+  reviewNotes: number
 }
 
 export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
@@ -207,19 +210,25 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
   const decks = allDecks(col)
 
   const raw = new Map<string, RawCounts>()
-  const blank = (): RawCounts => ({ new: 0, learning: 0, review: 0, total: 0, newDone: 0, reviewDone: 0 })
-  for (const r of col.all<{ deck_id: string; n: number; l: number; r: number; t: number }>(
-    `SELECT n.deck_id,
-       SUM(c.state = 0) AS n,
-       SUM(c.state IN (1,3) AND c.due < ?) AS l,
-       SUM(c.state = 2 AND c.due < ?) AS r,
-       COUNT(*) AS t
-     FROM cards c JOIN notes n ON n.id = c.note_id
-     WHERE c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)
+  const blank = (): RawCounts => ({ new: 0, learning: 0, review: 0, total: 0, newDone: 0, reviewDone: 0, newNotes: 0, reviewNotes: 0 })
+  // Per note first, so bury siblings can count once per note like getSession: a note with a due
+  // learning card shows no new/review card, and one with a due review shows no new card.
+  for (const r of col.all<{ deck_id: string; n: number; l: number; r: number; t: number; nn: number; rn: number }>(
+    `SELECT n.deck_id, SUM(x.n) AS n, SUM(x.l) AS l, SUM(x.r) AS r, SUM(x.t) AS t,
+       SUM(x.n > 0 AND x.l = 0 AND x.r = 0) AS nn, SUM(x.r > 0 AND x.l = 0) AS rn
+     FROM (SELECT note_id,
+             SUM(state = 0) AS n,
+             SUM(state IN (1,3) AND due < ?) AS l,
+             SUM(state = 2 AND due < ?) AS r,
+             COUNT(*) AS t
+           FROM cards
+           WHERE suspended = 0 AND (buried_until IS NULL OR buried_until <= ?)
+           GROUP BY note_id) x
+     JOIN notes n ON n.id = x.note_id
      GROUP BY n.deck_id`,
     [end, end, now]
   )) {
-    raw.set(r.deck_id, { ...blank(), new: r.n, learning: r.l, review: r.r, total: r.t })
+    raw.set(r.deck_id, { ...blank(), new: r.n, learning: r.l, review: r.r, total: r.t, newNotes: r.nn, reviewNotes: r.rn })
   }
   for (const r of col.all<{ deck_id: string; nd: number; rd: number }>(
     `SELECT n.deck_id, SUM(l.state = 0) AS nd, SUM(l.state = 2) AS rd
@@ -261,12 +270,18 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
       sum.total += kc.total
       sum.newDone += kc.newDone
       sum.reviewDone += kc.reviewDone
+      sum.newNotes += kc.newNotes
+      sum.reviewNotes += kc.reviewNotes
     }
     const cfg = presetFor(d.id)
+    // shortcut: getSession applies the daily limit before de-duplicating siblings, so when a limit
+    // bites and siblings fall inside it the session can show slightly fewer; fine for a count badge.
+    const fresh = cfg.burySiblings ? sum.newNotes : sum.new
+    const due = cfg.burySiblings ? sum.reviewNotes : sum.review
     const counts: DeckCounts = {
-      new: Math.max(0, Math.min(sum.new, cfg.newPerDay - sum.newDone)),
+      new: Math.max(0, Math.min(fresh, cfg.newPerDay - sum.newDone)),
       learning: sum.learning,
-      review: Math.max(0, Math.min(sum.review, cfg.reviewsPerDay - sum.reviewDone)),
+      review: Math.max(0, Math.min(due, cfg.reviewsPerDay - sum.reviewDone)),
       total: sum.total
     }
     return [{ ...d, path: [...path, d.name], depth, children: kids.map(([n]) => n), counts }, sum]

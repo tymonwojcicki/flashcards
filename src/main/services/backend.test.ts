@@ -58,6 +58,55 @@ describe('decks', () => {
     expect(col.get<{ n: number }>('SELECT COUNT(*) n FROM cards')!.n).toBe(0)
   })
 
+  describe('counts follow bury siblings', () => {
+    const reverseNote = (deckId: string) =>
+      notes.createNote(col, { deckId, front: 'q', back: 'a', tags: [], reverse: true })
+    const noBury = () =>
+      decks.createPreset(col, 'No bury', { ...decks.resolvePreset(col, decks.getDeckTree(col)[0].id).config, burySiblings: false })
+    const sessionSize = async (id: string) => (await study.getSession(col, id, 'mixed')).cards.length
+
+    it('bury on: a reverse note counts once, matching the session', async () => {
+      const [d] = decks.ensureDeckPath(col, 'A')
+      reverseNote(d)
+      reverseNote(d)
+      expect(decks.getDeckTree(col)[0].counts.new).toBe(2)
+      expect(await sessionSize(d)).toBe(2)
+    })
+
+    it('bury on: due reviews count once per note, and hide that note\'s new card', async () => {
+      const [d] = decks.ensureDeckPath(col, 'A')
+      reverseNote(d) // both cards due for review
+      reverseNote(d) // one review due, one new
+      const [both, mixed] = col.all<{ id: string }>('SELECT id FROM notes ORDER BY rowid')
+      col.run('UPDATE cards SET state = 2, due = 0 WHERE note_id = ?', [both.id])
+      col.run("UPDATE cards SET state = 2, due = 0 WHERE note_id = ? AND direction = 'fwd'", [mixed.id])
+      const { counts } = decks.getDeckTree(col)[0]
+      expect([counts.review, counts.new]).toEqual([2, 0])
+      expect(await sessionSize(d)).toBe(2)
+    })
+
+    it('bury off: every card counts', async () => {
+      const [d] = decks.ensureDeckPath(col, 'A')
+      decks.setDeckPreset(col, d, noBury().id)
+      reverseNote(d)
+      expect(decks.getDeckTree(col)[0].counts.new).toBe(2)
+      expect(await sessionSize(d)).toBe(2)
+    })
+
+    it('parent and child each follow their own preset', async () => {
+      const [child] = decks.ensureDeckPath(col, 'P::C')
+      const parent = decks.getDeckTree(col)[0].id
+      decks.setDeckPreset(col, child, noBury().id)
+      reverseNote(parent)
+      reverseNote(child)
+      const [p] = decks.getDeckTree(col)
+      expect(p.counts.new).toBe(2) // bury on: one per note
+      expect(p.children[0].counts.new).toBe(2) // bury off: both cards
+      expect(await sessionSize(parent)).toBe(2)
+      expect(await sessionSize(child)).toBe(2)
+    })
+  })
+
   it('child decks inherit preset from parent', () => {
     const [leaf] = decks.ensureDeckPath(col, 'A::B')
     const root = decks.getDeckTree(col)[0].id
