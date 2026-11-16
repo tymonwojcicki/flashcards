@@ -72,14 +72,38 @@ function HowItWorks(): React.JSX.Element {
         How scheduling works
       </button>
       {open && (
-        <p className="px-5 pb-5 pl-12 text-sm leading-relaxed text-muted">
-          Each card has a memory strength. When you rate a card, the scheduler (FSRS) estimates how long you will remember
-          it and sets the next review for the day your chance of remembering drops to your desired retention. Good and Easy
-          push the card further out; Hard a little; Again brings it back soon. New cards first go through short learning
-          steps on the same day before they get intervals in days. If you forget a card you already knew, it goes through
-          relearning steps and then back to normal reviews. To see more cards, raise the desired retention or the new cards
-          per day. To see fewer, lower them.
-        </p>
+        <div className="flex flex-col gap-3 px-5 pb-5 pl-12 text-sm leading-relaxed text-muted">
+          <p>
+            Each card has a memory strength. When you rate a card, the scheduler (FSRS) estimates how long you will
+            remember it and sets the next review for the day your chance of remembering drops to your desired retention.
+            New cards first go through short learning steps on the same day before they get gaps in days. If you forget a
+            card you already knew, it goes through relearning steps and then back to normal reviews.
+          </p>
+          <div>
+            <p className="font-semibold text-text">Which button to press</p>
+            <ul className="mt-1 flex list-disc flex-col gap-1 pl-5">
+              <li>
+                <b className="text-text">Again</b>: you didn&apos;t remember it. The card comes back soon.
+              </li>
+              <li>
+                <b className="text-text">Hard</b>: you remembered, but only with real effort or partly. The next gap is a
+                bit shorter.
+              </li>
+              <li>
+                <b className="text-text">Good</b>: you remembered it. Use this most of the time, including on new cards.
+              </li>
+              <li>
+                <b className="text-text">Easy</b>: you knew it instantly. On a new card it skips the learning steps and
+                schedules the card days ahead (about a week by default). Use it only for things you already knew before;
+                pressing it on something you just learned usually means forgetting it later.
+              </li>
+            </ul>
+            <p className="mt-2">Each button shows the next gap before you press it.</p>
+          </div>
+          <p>
+            To see more cards, raise the desired retention or the new cards per day. To see fewer, lower them.
+          </p>
+        </div>
       )}
     </div>
   )
@@ -332,7 +356,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Learning steps"
-              info="The short practice a new card gets before it is scheduled in days. With “1m 10m”, pressing Good brings the card back after 1 minute, then after 10 minutes; after the last step it gets its first gap in days. Again restarts the steps and Easy skips them. Units: s, m, h, d."
+              info="The short practice a new card gets before it is scheduled in days. With “1m 10m”, pressing Good brings the card back after 1 minute, then after 10 minutes; after the last step it gets its first gap in days. Again restarts the steps. Easy skips the remaining steps and schedules the card days ahead; use it only if you already knew the card, otherwise press Good. Units: s, m, h, d."
             >
               <StepsField label="Learning steps" value={draft.learningSteps} onCommit={(s) => change({ learningSteps: s })} />
             </SettingRow>
