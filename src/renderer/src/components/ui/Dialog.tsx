@@ -31,7 +31,7 @@ export function Dialog({
   return (
     <RDialog.Root open={open} onOpenChange={(o) => (dismissible || o) && onOpenChange(o)}>
       <RDialog.Portal>
-        <RDialog.Overlay className="anim-fade-in fixed inset-0 z-50 bg-bg/60 backdrop-blur-sm" />
+        <RDialog.Overlay className="anim-overlay fixed inset-0 z-50 bg-bg/60 backdrop-blur-sm" />
         <RDialog.Content
           onEscapeKeyDown={(e) => !dismissible && e.preventDefault()}
           onPointerDownOutside={(e) => !dismissible && e.preventDefault()}
@@ -51,7 +51,7 @@ export function Dialog({
           }}
           tabIndex={-1}
           className={clsx(
-            'anim-pop-in neu-raised outline-none focus:outline-none focus-visible:outline-none fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 flex max-h-[85vh] w-[min(32rem,calc(100vw-2rem))] flex-col rounded-[24px] p-6',
+            'anim-dialog neu-raised outline-none focus:outline-none focus-visible:outline-none fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 flex max-h-[85vh] w-[min(32rem,calc(100vw-2rem))] flex-col rounded-[24px] p-6',
             className
           )}
         >

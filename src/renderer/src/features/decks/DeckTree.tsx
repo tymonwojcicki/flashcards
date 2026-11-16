@@ -250,7 +250,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   const dragging = dragId ? byId.get(dragId) : null
   const validDrop = (target: Id | null): boolean => !!dragging && canMoveTo(tree, dragging, target)
 
-  const renderNode = (d: DeckNode, level: number): React.JSX.Element => {
+  const renderNode = (d: DeckNode, level: number, index: number): React.JSX.Element => {
     const hasKids = d.children.length > 0
     const collapsed = isCollapsed(d)
     const isFocused = (focused ?? rows[0]?.id) === d.id
@@ -260,7 +260,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
       ? 'opacity-100'
       : 'pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100'
     return (
-      <div key={d.id} role="none">
+      <div key={d.id} role="none" className="anim-row" style={{ '--i': index } as React.CSSProperties}>
         <ContextMenu items={manageItems(d)}>
           <div
             role="treeitem"
@@ -379,7 +379,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                 navigate({ name: 'add', deckId: d.id })
               }}
               className={clsx(
-                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-bold whitespace-nowrap text-muted transition-colors duration-150 hover:bg-text/5 hover:text-accent active:neu-pressed',
+                'inline-flex h-8 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-bold whitespace-nowrap text-muted btn-ghost press active:neu-pressed',
                 reveal
               )}
             >
@@ -399,7 +399,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                   e.stopPropagation()
                   study(d)
                 }}
-                className="inline-flex items-center gap-1.5 rounded-l-xl pr-3 pl-3.5 text-[0.8125rem] font-semibold transition-all duration-150 hover:brightness-110 active:brightness-95"
+                className="inline-flex items-center gap-1.5 rounded-l-xl pr-3 pl-3.5 text-[0.8125rem] font-semibold press hover:brightness-110 active:brightness-95"
               >
                 <Play size={13} fill="currentColor" />
                 Study
@@ -413,7 +413,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                     type="button"
                     aria-label={`Study modes for ${d.name}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex w-7 items-center justify-center rounded-r-xl transition-all duration-150 hover:brightness-110 active:brightness-95"
+                    className="inline-flex w-7 items-center justify-center rounded-r-xl press hover:brightness-110 active:brightness-95"
                   >
                     <ChevronDown size={15} />
                   </button>
@@ -429,7 +429,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
                   aria-label={`Actions for ${d.name}`}
                   tabIndex={-1}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:text-accent active:neu-pressed"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full btn-quiet press active:neu-pressed"
                 >
                   <MoreHorizontal size={18} />
                 </button>
@@ -438,7 +438,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
             />
           </div>
         </ContextMenu>
-        {hasKids && !collapsed && <div role="group">{d.children.map((c) => renderNode(c, level + 1))}</div>}
+        {hasKids && !collapsed && <div role="group">{d.children.map((c, i) => renderNode(c, level + 1, i))}</div>}
       </div>
     )
   }
@@ -459,7 +459,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
         </div>
       )}
       <div ref={containerRef} role="tree" aria-label="Decks" onKeyDown={onKeyDown}>
-        {tree.map((d) => renderNode(d, 0))}
+        {tree.map((d, i) => renderNode(d, 0, i))}
       </div>
       {dragId && (
         <div

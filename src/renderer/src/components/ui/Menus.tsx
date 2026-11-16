@@ -8,7 +8,7 @@ export type MenuEntry =
   | { type?: 'item'; label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean; hotkey?: string; disabled?: boolean; description?: string }
   | { type: 'separator' }
 
-const CONTENT = 'anim-menu-in neu-raised z-[80] min-w-[12rem] rounded-2xl p-1.5'
+const CONTENT = 'anim-menu neu-raised z-[80] min-w-[12rem] rounded-2xl p-1.5'
 const ITEM =
   'flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50'
 

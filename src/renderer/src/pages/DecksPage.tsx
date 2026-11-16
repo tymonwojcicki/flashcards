@@ -113,7 +113,7 @@ export default function DecksPage(): React.JSX.Element {
           <Button icon={<FileUp size={16} />} onClick={() => setImportAsk(true)}>
             Import deck file
           </Button>
-          <Button variant="primary" icon={<Plus size={16} />} hotkey="N" onClick={() => openNew(null)}>
+          <Button icon={<Plus size={16} />} hotkey="N" onClick={() => openNew(null)}>
             New deck
           </Button>
         </div>

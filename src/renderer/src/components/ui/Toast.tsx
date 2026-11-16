@@ -10,13 +10,16 @@ export interface ToastOptions {
 interface ToastItem extends ToastOptions {
   id: number
   message: string
+  closing?: boolean
 }
 
 const useToasts = create<{ items: ToastItem[] }>(() => ({ items: [] }))
 let nextId = 1
 
+/** Plays the exit animation (160ms), then removes the toast. */
 function dismiss(id: number): void {
-  useToasts.setState((s) => ({ items: s.items.filter((t) => t.id !== id) }))
+  useToasts.setState((s) => ({ items: s.items.map((t) => (t.id === id ? { ...t, closing: true } : t)) }))
+  setTimeout(() => useToasts.setState((s) => ({ items: s.items.filter((t) => t.id !== id) })), 160)
 }
 
 /** Show a transient message (auto-dismisses after 4s). */
@@ -44,9 +47,10 @@ export function Toaster(): React.JSX.Element {
         return (
           <div
             key={t.id}
-            className="anim-slide-up neu-raised pointer-events-auto flex items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm"
+            data-closing={t.closing ? 'true' : undefined}
+            className="anim-slide-up anim-toast neu-raised pointer-events-auto flex items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm"
           >
-            <Icon size={18} className={clsx('shrink-0', TONE[kind])} aria-hidden />
+            <Icon size={18} className={clsx('shrink-0', TONE[kind], kind === 'success' && 'anim-pulse')} aria-hidden />
             <span className="min-w-0 flex-1 text-text">{t.message}</span>
             {t.action && (
               <button

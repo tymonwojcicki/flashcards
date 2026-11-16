@@ -403,7 +403,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
             <button
               type="button"
               aria-label="More"
-              className="neu-raised-sm inline-flex h-10 w-10 items-center justify-center rounded-full text-text hover:text-accent active:neu-pressed"
+              className="neu-raised-sm inline-flex h-10 w-10 items-center justify-center rounded-full btn-neutral active:neu-pressed"
             >
               <MoreHorizontal size={18} />
             </button>

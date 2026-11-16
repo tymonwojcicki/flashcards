@@ -16,11 +16,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'neu-raised-sm text-accent hover:brightness-105 active:neu-pressed',
+  primary: 'neu-raised-sm btn-shine active:neu-pressed',
   accent:
-    'bg-accent text-accent-contrast neu-accent hover:brightness-110 active:brightness-95 active:neu-accent-pressed',
-  secondary: 'neu-raised-sm text-text hover:text-accent active:neu-pressed',
-  ghost: 'bg-transparent text-text hover:bg-text/5 active:neu-pressed',
+    'bg-accent text-accent-contrast neu-accent btn-fill active:brightness-95 active:neu-accent-pressed',
+  secondary: 'neu-raised-sm btn-neutral active:neu-pressed',
+  ghost: 'btn-ghost text-text active:neu-pressed',
   danger: 'neu-raised-sm text-danger hover:bg-danger/10 active:neu-pressed'
 }
 
@@ -39,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       className={clsx(
-        'inline-flex shrink-0 items-center justify-center font-bold whitespace-nowrap transition-all duration-150 select-none',
+        'inline-flex shrink-0 items-center justify-center font-bold whitespace-nowrap transition-all duration-150 select-none active:scale-[0.97]',
         'disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant],
         SIZES[size],
@@ -48,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...rest}
     >
       {icon}
-      {children}
+      {variant === 'primary' && typeof children === 'string' ? <span className="btn-label">{children}</span> : children}
       {hotkey && <Kbd hotkey={hotkey} tone={variant === 'accent' ? 'onAccent' : 'default'} className="ml-1.5" />}
     </button>
   )
@@ -77,11 +77,11 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         type={type}
         aria-label={label}
         className={clsx(
-          'inline-flex shrink-0 items-center justify-center rounded-full text-text transition-all duration-150 select-none',
+          'inline-flex shrink-0 items-center justify-center rounded-full text-text transition-all duration-150 select-none active:scale-[0.97]',
           'disabled:pointer-events-none disabled:opacity-50',
           variant === 'raised'
-            ? 'neu-raised-sm hover:text-accent active:neu-pressed'
-            : 'hover:bg-text/5 hover:text-accent active:neu-pressed',
+            ? 'neu-raised-sm btn-neutral active:neu-pressed'
+            : 'btn-ghost active:neu-pressed',
           ICON_SIZES[size],
           className
         )}

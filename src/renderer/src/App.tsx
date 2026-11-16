@@ -88,7 +88,9 @@ export default function App(): React.JSX.Element {
           <div className={clsx('flex min-w-0 flex-1 flex-col', collapsed && !studying && 'pr-[5.5rem]')}>
             <ReadOnlyBanner />
             <main className="min-h-0 flex-1 overflow-y-auto p-6">
-              <CurrentPage />
+              <div key={routeName} className="anim-page h-full">
+                <CurrentPage />
+              </div>
             </main>
           </div>
           <StartupGate />

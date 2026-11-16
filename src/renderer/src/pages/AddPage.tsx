@@ -296,7 +296,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
             <div className="flex items-center gap-3">
               {flash > 0 && !editing && (
                 <span key={flash} className="anim-added-flash flex items-center gap-1 text-sm font-semibold text-success">
-                  <Check size={16} /> Added
+                  <Check size={16} className="anim-pulse" /> Added
                 </span>
               )}
               <Button

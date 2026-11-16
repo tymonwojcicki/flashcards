@@ -70,7 +70,7 @@ export function DataTab(): React.JSX.Element {
           folder.
         </p>
         <div>
-          <Button variant="primary" icon={<DatabaseBackup size={16} />} disabled={busy} onClick={() => void backup()}>
+          <Button icon={<DatabaseBackup size={16} />} disabled={busy} onClick={() => void backup()}>
             {busy ? 'Backing up…' : 'Back up now'}
           </Button>
         </div>

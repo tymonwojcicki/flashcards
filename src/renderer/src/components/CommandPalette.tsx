@@ -132,10 +132,10 @@ export function CommandPalette(): React.JSX.Element {
   return (
     <RDialog.Root open={open} onOpenChange={setOpen}>
       <RDialog.Portal>
-        <RDialog.Overlay className="anim-fade-in fixed inset-0 z-50 bg-bg/60 backdrop-blur-sm" />
+        <RDialog.Overlay className="anim-overlay fixed inset-0 z-50 bg-bg/60 backdrop-blur-sm" />
         <RDialog.Content
           aria-describedby={undefined}
-          className="anim-fade-in neu-raised fixed top-[18%] left-1/2 z-50 flex max-h-[60vh] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 flex-col rounded-[24px] p-4"
+          className="anim-dialog neu-raised fixed top-[18%] left-1/2 z-50 flex max-h-[60vh] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 flex-col rounded-[24px] p-4"
         >
           <RDialog.Title className="sr-only">Command palette</RDialog.Title>
           <div className="neu-inset flex items-center gap-3 rounded-2xl px-4">

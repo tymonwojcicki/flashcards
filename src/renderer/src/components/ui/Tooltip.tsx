@@ -18,7 +18,7 @@ export function Tooltip({ content, hotkey, side = 'top', children }: TooltipProp
           <T.Content
             side={side}
             sideOffset={8}
-            className="anim-menu-in neu-raised-sm z-[90] flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-text"
+            className="anim-menu neu-raised-sm z-[90] flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-text"
           >
             {content}
             {hotkey && <Kbd hotkey={hotkey} />}

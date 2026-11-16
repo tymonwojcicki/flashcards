@@ -79,7 +79,7 @@ export function StartupGate(): React.JSX.Element | null {
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => void run(() => window.api.resolveConflict(c.file, 'discard'))}>
                 Discard
               </Button>
-              <Button size="sm" variant="primary" disabled={busy} onClick={() => void run(() => window.api.resolveConflict(c.file, 'use'))}>
+              <Button size="sm" disabled={busy} onClick={() => void run(() => window.api.resolveConflict(c.file, 'use'))}>
                 Use this copy
               </Button>
             </li>

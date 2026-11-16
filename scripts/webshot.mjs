@@ -19,6 +19,7 @@ await page.waitForTimeout(1200)
 for (const s of steps) {
   try {
     if (s.eval) await page.evaluate(s.eval)
+    if (s.hover) await page.hover(s.hover, { timeout: 4000 })
     if (s.click) await page.click(s.click, { timeout: 4000 })
     if (s.type) await page.keyboard.type(s.type, { delay: 15 })
     if (s.press) await page.keyboard.press(s.press)

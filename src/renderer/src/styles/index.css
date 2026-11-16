@@ -10,6 +10,7 @@
 
 /* ---------- Tokens ---------- */
 :root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --bg: #e3e7ee;
   --surface: #e8ecf2;
   --surface-hi: #f0f3f8;
@@ -304,21 +305,126 @@ textarea:focus-visible,
   to { opacity: 1; }
 }
 @keyframes neu-pop-in {
-  from { opacity: 0; scale: 0.97; }
+  from { opacity: 0; scale: 0.95; }
   to { opacity: 1; scale: 1; }
 }
 @keyframes neu-slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
 }
 @keyframes neu-menu-in {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; scale: 0.95; }
+  to { opacity: 1; scale: 1; }
 }
-.anim-fade-in { animation: neu-fade-in 150ms ease-out; }
-.anim-pop-in { animation: neu-pop-in 150ms ease-out; }
-.anim-slide-up { animation: neu-slide-up 180ms ease-out; }
-.anim-menu-in { animation: neu-menu-in 120ms ease-out; }
+@keyframes neu-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes neu-pop-out {
+  from { opacity: 1; scale: 1; }
+  to { opacity: 0; scale: 0.95; }
+}
+@keyframes neu-row-in {
+  from { opacity: 0; translate: 0 4px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes neu-pulse {
+  0% { scale: 1; filter: drop-shadow(0 0 0 transparent); }
+  40% { scale: 1.18; filter: drop-shadow(0 0 6px var(--success)); }
+  100% { scale: 1; filter: drop-shadow(0 0 0 transparent); }
+}
+.anim-fade-in { animation: neu-fade-in 200ms var(--ease-out); }
+.anim-pop-in { animation: neu-pop-in 200ms var(--ease-out); }
+.anim-pulse { animation: neu-pulse 300ms var(--ease-out); }
+/* Crossfade-in of the new page on route change. */
+.anim-page { animation: neu-fade-in 200ms var(--ease-out); }
+/* Staggered list rows: set style={{ '--i': index }}; delay is capped at 10 steps of 30ms. */
+.anim-row {
+  animation: neu-row-in 220ms var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 10) * 30ms);
+}
+/* Radix overlays and centred dialogs: enter 200ms, exit 160ms (Presence waits for the closed animation). */
+.anim-overlay[data-state="open"] { animation: neu-fade-in 200ms var(--ease-out); }
+.anim-overlay[data-state="closed"] { animation: neu-fade-out 160ms var(--ease-out) forwards; }
+.anim-dialog[data-state="open"] { animation: neu-pop-in 200ms var(--ease-out); }
+.anim-dialog[data-state="closed"] { animation: neu-pop-out 160ms var(--ease-out) forwards; }
+/* Radix popovers, menus, selects, tooltips: grow from and shrink back to the trigger. */
+.anim-menu {
+  transform-origin: var(
+    --radix-dropdown-menu-content-transform-origin,
+    var(
+      --radix-context-menu-content-transform-origin,
+      var(
+        --radix-select-content-transform-origin,
+        var(--radix-popover-content-transform-origin, var(--radix-tooltip-content-transform-origin, center))
+      )
+    )
+  );
+}
+.anim-menu[data-state="open"], .anim-menu[data-state="delayed-open"], .anim-menu[data-state="instant-open"] {
+  animation: neu-pop-in 160ms var(--ease-out);
+}
+.anim-menu[data-state="closed"] { animation: neu-pop-out 130ms var(--ease-out) forwards; }
+/* Toasts */
+.anim-toast[data-closing="true"] { animation: neu-pop-out 160ms var(--ease-out) forwards; }
+.anim-slide-up { animation: neu-slide-up 220ms var(--ease-out); }
+/* Non-Radix popups (combobox, tag suggestions, math popover): enter only, from the top edge. */
+.anim-menu-in { animation: neu-menu-in 160ms var(--ease-out); transform-origin: top center; }
+
+/* ---------- Button tiers (applied via Button.tsx variants) ---------- */
+/* Fill: gradient + glow; hover = slightly brighter, wider glow. */
+@utility btn-fill {
+  &:hover:not(:disabled):not(:active) {
+    filter: brightness(1.06);
+    box-shadow: 0 5px 20px var(--accent-glow), 0 0 0 1px color-mix(in srgb, var(--accent-1) 25%, transparent),
+      inset 1px 1px 0 rgb(255 255 255 / 0.45), inset 0 -2px 5px rgb(0 0 0 / 0.14);
+  }
+}
+/* Accent text: label turns into an accent gradient and a soft light band sweeps across once. */
+@utility btn-shine {
+  color: var(--accent);
+  & .btn-label {
+    --shine-mid: color-mix(in srgb, var(--accent), var(--accent-2) 45%);
+    --shine-band: color-mix(in srgb, var(--accent-1), white 35%);
+  }
+  & svg { transition: color 200ms var(--ease-out); }
+  &:hover:not(:disabled) svg { color: var(--accent-1); }
+  &:hover:not(:disabled) .btn-label {
+    background-image: linear-gradient(100deg, var(--accent) 0%, var(--shine-mid) 20%, var(--accent) 38%, var(--shine-band) 50%, var(--accent) 62%, var(--shine-mid) 80%, var(--accent) 100%);
+    background-size: 250% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: neu-shine 600ms var(--ease-out) forwards;
+  }
+}
+@keyframes neu-shine {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+/* Neutral: text goes to the accent on hover. */
+@utility btn-neutral {
+  color: var(--text);
+  transition-property: color, background-color, box-shadow, filter, opacity, scale;
+  &:hover:not(:disabled) { color: var(--accent); }
+}
+/* Quiet: muted resting text, same hover. */
+@utility btn-quiet {
+  color: var(--text-muted);
+  &:hover:not(:disabled) { color: var(--accent); }
+}
+/* Ghost / icon: background tint on hover. */
+@utility btn-ghost {
+  background-color: transparent;
+  &:hover:not(:disabled) { background-color: color-mix(in srgb, var(--text) 5%, transparent); color: var(--accent); }
+}
+
+/* Press feedback with a short transition on the scale property. */
+@utility press {
+  transition-property: color, background-color, box-shadow, filter, opacity, scale;
+  transition-duration: 150ms;
+  &:active:not(:disabled) { scale: 0.97; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -326,6 +432,8 @@ textarea:focus-visible,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

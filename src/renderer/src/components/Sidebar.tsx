@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   BarChart3,
+  Captions,
   Keyboard,
   Layers,
   Moon,
@@ -83,6 +84,19 @@ function NavButton({ item, collapsed, badge }: { item: NavItem; collapsed: boole
     </Tooltip>
   ) : (
     btn
+  )
+}
+
+/** Same grid as NavButton (px-4, 19px icon, gap-3) so icons, labels and right edges line up. */
+function ToggleRow(props: { id: string; icon: React.ReactNode; label: string; checked: boolean; onChange: () => void }): React.JSX.Element {
+  return (
+    <div className="flex h-11 items-center gap-3 rounded-2xl px-4 text-muted">
+      {props.icon}
+      <label htmlFor={props.id} className="flex-1 cursor-pointer whitespace-nowrap">
+        {props.label}
+      </label>
+      <Switch id={props.id} checked={props.checked} onCheckedChange={() => props.onChange()} />
+    </div>
   )
 }
 
@@ -174,23 +188,22 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             </>
           ) : (
             <>
-              <div className="flex items-center justify-between rounded-2xl px-2 py-1">
-                <label htmlFor="hint-switch" className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted">
-                  <Keyboard size={15} />
-                  Hotkey hints
-                </label>
-                <Switch id="hint-switch" checked={showHints} onCheckedChange={() => toggleHints()} />
-              </div>
-              <div className="flex items-center justify-between px-1">
-                <IconButton
-                  label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                  icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={toggleTheme}
-                />
-                <IconButton label="Keyboard shortcuts" icon={<Keyboard size={16} />} hotkey="?" size="sm" variant="ghost" onClick={() => setHelpOpen(true)} />
-              </div>
+              <button
+                onClick={() => setHelpOpen(true)}
+                className="flex h-11 w-full items-center gap-3 rounded-2xl px-4 text-sm font-semibold text-muted transition-all duration-150 hover:bg-text/5 hover:text-text"
+              >
+                <Keyboard size={19} />
+                <span className="flex-1 text-left whitespace-nowrap">Shortcuts</span>
+                <Kbd hotkey="?" className="shrink-0" />
+              </button>
+              <ToggleRow id="hint-switch" icon={<Captions size={19} />} label="Hotkey hints" checked={showHints} onChange={toggleHints} />
+              <ToggleRow
+                id="theme-switch"
+                icon={theme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}
+                label="Dark mode"
+                checked={theme === 'dark'}
+                onChange={toggleTheme}
+              />
             </>
           )}
         </div>

@@ -457,7 +457,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
                 }
               />
             )}
-            {rows.map((r) => {
+            {rows.map((r, idx) => {
               const sel = selected.has(r.cardId)
               const foc = focusedId === r.cardId
               const due = dueInfo(r)
@@ -467,12 +467,13 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
                 <div
                   key={r.cardId}
                   data-card={r.cardId}
+                  style={{ '--i': idx } as React.CSSProperties}
                   role="option"
                   aria-selected={sel}
                   onClick={(e) => onRowClick(r, e)}
                   onDoubleClick={() => navigate({ name: 'add', editNoteId: r.noteId })}
                   className={clsx(
-                    'grid cursor-default items-center gap-3 border-b border-text/[0.06] px-4 py-3 text-sm select-none',
+                    'anim-row grid cursor-default items-center gap-3 border-b border-text/[0.06] px-4 py-3 text-sm select-none',
                     COLS,
                     sel
                       ? 'bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]'
@@ -577,7 +578,6 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
               <div className="mt-auto flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  variant="primary"
                   icon={<Pencil size={14} />}
                   onClick={() => navigate({ name: 'add', editNoteId: focusedRow.noteId })}
                 >
