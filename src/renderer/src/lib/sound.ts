@@ -30,40 +30,63 @@ interface Note {
   type?: 'sine' | 'triangle'
 }
 
-const MASTER = 0.2
-const LOWPASS_HZ = 2600
+const MASTER = 0.55
+const LOWPASS_HZ = 4200
 
-/** Sound recipes. All sine/triangle with a quick attack and exponential decay. */
+/**
+ * Sound recipes. Sine/triangle with a quick attack and exponential decay. Low notes are kept at
+ * 200 Hz or above so laptop speakers can play them; a quiet octave overtone adds body.
+ */
 export const RECIPES: Record<SoundName, Note[]> = {
-  reveal: [{ f: 1100, to: 900, at: 0, dur: 0.05, g: 0.5, type: 'triangle' }],
-  again: [{ f: 150, to: 95, at: 0, dur: 0.16, g: 0.9, type: 'sine' }],
-  hard: [{ f: 260, to: 230, at: 0, dur: 0.14, g: 0.6, type: 'sine' }],
-  good: [{ f: 520, to: 700, at: 0, dur: 0.1, g: 0.6, type: 'sine' }],
+  reveal: [
+    { f: 1200, to: 950, at: 0, dur: 0.07, g: 0.55, type: 'triangle' },
+    { f: 600, at: 0, dur: 0.06, g: 0.25, type: 'sine' }
+  ],
+  again: [
+    { f: 300, to: 200, at: 0, dur: 0.2, g: 0.8, type: 'sine' },
+    { f: 600, to: 400, at: 0, dur: 0.12, g: 0.2, type: 'triangle' }
+  ],
+  hard: [
+    { f: 392, to: 349, at: 0, dur: 0.17, g: 0.65, type: 'sine' },
+    { f: 784, to: 698, at: 0, dur: 0.1, g: 0.15, type: 'triangle' }
+  ],
+  good: [
+    { f: 523, to: 784, at: 0, dur: 0.14, g: 0.65, type: 'sine' },
+    { f: 1046, at: 0.02, dur: 0.1, g: 0.15, type: 'triangle' }
+  ],
   easy: [
-    { f: 659, at: 0, dur: 0.14, g: 0.5, type: 'sine' },
-    { f: 988, at: 0.07, dur: 0.18, g: 0.5, type: 'sine' }
+    { f: 659, at: 0, dur: 0.18, g: 0.55, type: 'sine' },
+    { f: 988, at: 0.08, dur: 0.24, g: 0.55, type: 'sine' },
+    { f: 1976, at: 0.08, dur: 0.12, g: 0.1, type: 'triangle' }
   ],
-  undo: [{ f: 640, to: 400, at: 0, dur: 0.1, g: 0.5, type: 'sine' }],
+  undo: [{ f: 700, to: 420, at: 0, dur: 0.14, g: 0.55, type: 'sine' }],
   complete: [
-    { f: 523, at: 0, dur: 0.3, g: 0.5, type: 'sine' },
-    { f: 659, at: 0.12, dur: 0.3, g: 0.5, type: 'sine' },
-    { f: 784, at: 0.24, dur: 0.5, g: 0.5, type: 'sine' }
+    { f: 523, at: 0, dur: 0.35, g: 0.5, type: 'sine' },
+    { f: 659, at: 0.12, dur: 0.35, g: 0.5, type: 'sine' },
+    { f: 784, at: 0.24, dur: 0.6, g: 0.5, type: 'sine' },
+    { f: 1568, at: 0.24, dur: 0.3, g: 0.08, type: 'triangle' }
   ],
-  added: [{ f: 440, to: 620, at: 0, dur: 0.09, g: 0.55, type: 'sine' }],
-  toggle: [{ f: 900, to: 800, at: 0, dur: 0.025, g: 0.35, type: 'triangle' }],
+  added: [
+    { f: 494, to: 740, at: 0, dur: 0.12, g: 0.6, type: 'sine' },
+    { f: 988, at: 0.02, dur: 0.08, g: 0.12, type: 'triangle' }
+  ],
+  toggle: [{ f: 1000, to: 850, at: 0, dur: 0.04, g: 0.4, type: 'triangle' }],
   success: [
-    { f: 784, at: 0, dur: 0.12, g: 0.35, type: 'sine' },
-    { f: 1047, at: 0.06, dur: 0.16, g: 0.3, type: 'sine' }
+    { f: 784, at: 0, dur: 0.15, g: 0.45, type: 'sine' },
+    { f: 1047, at: 0.07, dur: 0.2, g: 0.4, type: 'sine' }
   ],
   error: [
-    { f: 220, at: 0, dur: 0.06, g: 0.5, type: 'sine' },
-    { f: 196, at: 0.09, dur: 0.07, g: 0.5, type: 'sine' }
+    { f: 330, at: 0, dur: 0.09, g: 0.6, type: 'sine' },
+    { f: 294, at: 0.11, dur: 0.1, g: 0.6, type: 'sine' }
   ],
   import: [
-    { f: 587, at: 0, dur: 0.18, g: 0.45, type: 'sine' },
-    { f: 880, at: 0.09, dur: 0.22, g: 0.45, type: 'sine' }
+    { f: 587, at: 0, dur: 0.2, g: 0.5, type: 'sine' },
+    { f: 880, at: 0.09, dur: 0.26, g: 0.5, type: 'sine' }
   ],
-  preview: [{ f: 520, to: 700, at: 0, dur: 0.1, g: 0.6, type: 'sine' }]
+  preview: [
+    { f: 523, to: 784, at: 0, dur: 0.14, g: 0.65, type: 'sine' },
+    { f: 1046, at: 0.02, dur: 0.1, g: 0.15, type: 'triangle' }
+  ]
 }
 
 /** Total length of a recipe in seconds. */
@@ -121,8 +144,11 @@ export function playSound(name: SoundName): void {
     if (!soundEffects || soundVolume <= 0) return
     const c = getContext()
     if (!c) return
-    if (c.state === 'suspended') void c.resume().catch(() => undefined)
-    renderSound(c, name, soundVolume)
+    // Schedule relative to the context clock (it keeps running after creation). If the context
+    // is still suspended (autoplay policy), wait for it to resume before scheduling.
+    const play = (): void => renderSound(c, name, soundVolume, c.currentTime + 0.01)
+    if (c.state === 'suspended') void c.resume().then(play, () => undefined)
+    else play()
   } catch {
     /* audio is optional */
   }
