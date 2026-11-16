@@ -3,12 +3,12 @@ import clsx from 'clsx'
 import { Check, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import type { DeckNode, Id } from '@shared/types'
-import { Button, IconButton, Kbd, Panel, Switch, toast } from '@renderer/components/ui'
+import { Button, IconButton, Kbd, Switch, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { useShortcut, useEffectiveKeys } from '@renderer/lib/shortcuts'
 import { findDeck } from '@renderer/lib/decks'
-import { deckPathLabel } from '@renderer/lib/format'
-import { RichHtml } from '@renderer/lib/html'
+import { deckPathLabel, plural } from '@renderer/lib/format'
+import { plainText } from '@renderer/features/browse/text'
 import { CardField } from '@renderer/features/editor/CardField'
 import { DeckCombobox } from '@renderer/features/editor/DeckCombobox'
 import { TagInput } from '@renderer/features/editor/TagInput'
@@ -23,6 +23,8 @@ interface SessionEntry {
   tags: string[]
   reverse: boolean
 }
+
+const SESSION_COLS = 'grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_4.5rem]'
 
 function hasContent(html: string): boolean {
   if (/<img\b|data-math/i.test(html)) return true
@@ -222,9 +224,15 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="relative z-30 px-6 pt-5 pb-3">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="min-w-0 flex-1">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 pt-5 pb-10">
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="relative z-30 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-text" onClick={() => deckInput.current?.focus()}>
+                Deck
+              </label>
+              <Kbd hotkey={deckKeys} />
+            </div>
             <DeckCombobox
               tree={deckOptionsTree}
               value={deckId}
@@ -236,16 +244,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
               label="Deck"
             />
           </div>
-          {prefs.showHotkeyHints && (
-            <span className="hidden items-center gap-1.5 text-xs text-muted sm:inline-flex">
-              Change deck <Kbd hotkey={deckKeys} />
-            </span>
-          )}
-        </div>
-      </div>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-6 pt-3 pb-10 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-5">
           {editing && (
             <div className="neu-inset flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-sm">
               <span className="flex items-center gap-2 font-semibold text-accent">
@@ -313,55 +312,62 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
           </div>
         </div>
 
-        <Panel className="flex h-fit max-h-[calc(100vh-9rem)] min-w-0 flex-col gap-3 lg:sticky lg:top-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-text">Added this session</h2>
-            {session.length > 0 && <span className="text-xs text-muted">{session.length}</span>}
+        <section className="flex min-w-0 flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-text">This session</h2>
+            <span className="text-xs text-muted">{session.length === 0 ? 'Math: write LaTeX between $ signs.' : plural(session.length, 'card')}</span>
           </div>
-          {session.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">
-              Added cards are listed here. Math: write LaTeX between $ signs.
-            </p>
-          ) : (
-            <ul className="-mr-2 flex flex-col gap-2.5 overflow-y-auto pr-2">
-              {session.map((e) => (
-                <li
-                  key={e.noteId}
-                  className={clsx(
-                    'neu-raised-sm group rounded-2xl p-3',
-                    e.noteId === lastAddedId && 'anim-item-in',
-                    editing?.noteId === e.noteId && 'ring-2 ring-accent/60'
-                  )}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="max-h-16 min-w-0 flex-1 overflow-hidden text-sm font-medium text-text">
-                      <RichHtml html={e.front} />
-                    </div>
-                    <div className="flex shrink-0 gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+          <div className="neu-inset overflow-hidden rounded-[20px] bg-bg">
+            <div className={clsx('grid gap-3 border-b border-text/10 px-4 py-2.5 text-[0.68rem] font-semibold tracking-wider text-muted uppercase', SESSION_COLS)}>
+              <span>Front</span>
+              <span>Back</span>
+              <span>Deck</span>
+              <span />
+            </div>
+            {session.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-muted">Cards you add are listed here.</p>
+            ) : (
+              session.map((e, i) => {
+                const front = plainText(e.front) || (hasContent(e.front) ? '(image or math)' : '')
+                const back = plainText(e.back) || (hasContent(e.back) ? '(image or math)' : '')
+                return (
+                  <div
+                    key={e.noteId}
+                    onDoubleClick={() => startEdit(e)}
+                    className={clsx(
+                      'group grid items-center gap-3 px-4 py-2.5 text-sm',
+                      SESSION_COLS,
+                      i < session.length - 1 && 'border-b border-text/[0.06]',
+                      e.noteId === lastAddedId && 'anim-item-in',
+                      editing?.noteId === e.noteId
+                        ? 'bg-accent/10 shadow-[inset_3px_0_0_var(--accent)]'
+                        : 'hover:bg-accent/[0.05]'
+                    )}
+                  >
+                    <span className="truncate font-medium text-text" title={front}>
+                      {e.reverse && (
+                        <span className="mr-1.5 text-xs text-muted" title="Also creates a reverse card">
+                          ↺
+                        </span>
+                      )}
+                      {front}
+                    </span>
+                    <span className="truncate text-muted" title={back}>
+                      {back}
+                    </span>
+                    <span className="truncate text-xs text-muted" title={e.deckLabel}>
+                      {e.deckLabel}
+                    </span>
+                    <span className="flex justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
                       <IconButton size="sm" variant="ghost" label="Edit" icon={<Pencil size={14} />} onClick={() => startEdit(e)} />
-                      <IconButton
-                        size="sm"
-                        variant="ghost"
-                        label="Delete"
-                        icon={<Trash2 size={14} />}
-                        onClick={() => void removeEntry(e)}
-                      />
-                    </div>
+                      <IconButton size="sm" variant="ghost" label="Delete" icon={<Trash2 size={14} />} onClick={() => void removeEntry(e)} />
+                    </span>
                   </div>
-                  {hasContent(e.back) && (
-                    <div className="mt-1 max-h-12 overflow-hidden text-xs text-muted">
-                      <RichHtml html={e.back} />
-                    </div>
-                  )}
-                  <div className="mt-1.5 truncate text-[0.68rem] text-muted/80">
-                    {e.deckLabel}
-                    {e.reverse ? ' · + reverse' : ''}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+                )
+              })
+            )}
+          </div>
+        </section>
       </div>
     </div>
   )
