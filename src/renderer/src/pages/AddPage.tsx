@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Check, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { Check, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import type { DeckNode, Id } from '@shared/types'
 import { Button, IconButton, Kbd, Switch, toast } from '@renderer/components/ui'
@@ -246,13 +246,8 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
           </div>
 
           {editing && (
-            <div className="neu-inset flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-sm">
-              <span className="flex items-center gap-2 font-semibold text-accent">
-                <Pencil size={15} /> Editing card
-              </span>
-              <Button size="sm" variant="ghost" icon={<X size={14} />} onClick={cancelEdit}>
-                Cancel edit
-              </Button>
+            <div className="neu-inset flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-accent">
+              <Pencil size={15} /> Editing card
             </div>
           )}
 
@@ -297,6 +292,11 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
                 <span key={flash} className="anim-added-flash flex items-center gap-1 text-sm font-semibold text-success">
                   <Check size={16} className="anim-pulse" /> Added
                 </span>
+              )}
+              {editing && (
+                <Button size="lg" onClick={cancelEdit}>
+                  Cancel
+                </Button>
               )}
               <Button
                 variant="primary"
