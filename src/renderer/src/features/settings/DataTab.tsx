@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Cloud, DatabaseBackup, FolderOpen, FolderSync, Upload } from 'lucide-react'
-import { Button, Panel, Switch, Well, confirm, toast } from '@renderer/components/ui'
+import { Button, Panel, Switch, Well, confirm, toast, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { UsagePanel } from './UsagePanel'
+
+/** Running inside the Electron desktop app (not the web/PWA build). */
+const IS_DESKTOP = /\bElectron\//.test(navigator.userAgent)
 import { TrashPanel } from './TrashPanel'
 import { SettingRow } from './common'
 import type { AutoBackupState } from '@shared/dataSafety'
@@ -21,7 +24,7 @@ export function DataTab(): React.JSX.Element {
     try {
       await window.api.setAutoBackup(enabled)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not save setting', { kind: 'error' })
+      toastError(e, 'Could not save setting')
     }
   }
 
@@ -41,7 +44,7 @@ export function DataTab(): React.JSX.Element {
       await useApp.getState().refreshDecks()
       toast('Backup restored', { kind: 'success' })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not restore the backup', { kind: 'error' })
+      toastError(e, 'Could not restore the backup')
     } finally {
       setBusy(false)
     }
@@ -55,7 +58,7 @@ export function DataTab(): React.JSX.Element {
       await useApp.getState().refreshDecks()
       toast(`Data folder changed to ${res.dataDir}`, { kind: 'success' })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not change folder', { kind: 'error' })
+      toastError(e, 'Could not change folder')
     }
   }
 
@@ -65,7 +68,7 @@ export function DataTab(): React.JSX.Element {
       const path = await window.api.backupNow()
       toast(`Backup saved: ${path}`, { kind: 'success' })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Backup failed', { kind: 'error' })
+      toastError(e, 'Backup failed')
     } finally {
       setBusy(false)
     }
@@ -89,9 +92,10 @@ export function DataTab(): React.JSX.Element {
           <Button icon={<FolderSync size={16} />} disabled={noFolders} onClick={() => void change()}>
             Change folder…
           </Button>
-          <Button icon={<FolderOpen size={16} />} onClick={() => void window.api.openDataDir()}>
+          {/* Browsers can't open a file-explorer window; only the desktop app can. */}
+          {IS_DESKTOP && <Button icon={<FolderOpen size={16} />} onClick={() => void window.api.openDataDir()}>
             Open folder
-          </Button>
+          </Button>}
         </div>
         <div className="neu-inset flex gap-3 rounded-2xl p-4 text-sm">
           <Cloud size={20} className="mt-0.5 shrink-0 text-accent" />

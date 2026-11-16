@@ -1,28 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Check, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
-import {
-  Button,
-  Dialog,
-  Field,
-  Input,
-  Panel,
-  Select,
-  Slider,
-  Switch,
-  confirm,
-  toast
-} from '@renderer/components/ui'
+import { Button, Dialog, Field, Input, Panel, Select, Slider, Switch, confirm, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { flattenDecks } from '@renderer/lib/decks'
 import { NumberField, Segmented, SettingRow } from './common'
-import { DEFAULT_PRESET_ID, formatYears, parseSteps, workloadMultiplier } from './steps'
+import { DEFAULT_PRESET_ID, parseSteps, workloadMultiplier } from './steps'
 import { DEFAULT_COLLECTION_SETTINGS } from '@shared/types'
 import type { CollectionSettings, Preset, PresetConfig } from '@shared/types'
-
-function errMsg(e: unknown, fallback: string): string {
-  return e instanceof Error ? e.message : fallback
-}
 
 function StepsField({
   label,
@@ -38,14 +23,22 @@ function StepsField({
     setText((t) => (parseSteps(t).steps.join(' ') === value.join(' ') ? t : value.join(' ')))
   }, [value])
   const { steps, invalid } = parseSteps(text)
+  // Readable preview (or the problem) sits inline, left of the field.
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex items-center justify-end gap-3">
+      <span
+        className={clsx('text-right text-xs whitespace-nowrap', invalid.length > 0 ? 'text-danger' : 'text-muted')}
+        aria-live="polite"
+      >
+        {invalid.length > 0 ? `Not valid: ${invalid.join(', ')}` : steps.length === 0 ? 'None' : steps.map(readableStep).join(' → ')}
+      </span>
+      <div className="w-36 shrink-0">
       <Input
         aria-label={label}
         aria-invalid={invalid.length > 0}
         className={clsx(invalid.length > 0 && 'border-danger')}
         value={text}
-        placeholder="e.g. 1m 10m"
+        placeholder="1m 10m"
         onChange={(e) => {
           setText(e.target.value)
           const p = parseSteps(e.target.value)
@@ -53,15 +46,16 @@ function StepsField({
         }}
         onBlur={() => invalid.length > 0 && setText(value.join(' '))}
       />
-      {invalid.length > 0 ? (
-        <p className="text-xs text-danger">
-          Not valid: {invalid.join(', ')}. Use a number and s, m, h or d (e.g. 30s, 10m, 1h, 1d).
-        </p>
-      ) : (
-        <p className="text-xs text-muted">{steps.length === 0 ? 'No steps' : steps.join(' → ')}</p>
-      )}
+      </div>
     </div>
   )
+}
+
+const UNIT: Record<string, string> = { s: 'sec', m: 'min', h: 'h', d: 'd' }
+/** "10m" -> "10 min", "1d" -> "1 d". */
+function readableStep(step: string): string {
+  const m = /^(\d+(?:\.\d+)?)([smhd])$/.exec(step)
+  return m ? `${m[1]} ${UNIT[m[2]]}` : step
 }
 
 function HowItWorks(): React.JSX.Element {
@@ -122,7 +116,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       clearTimeout(savedTimer.current)
       savedTimer.current = setTimeout(() => setSaved(false), 1800)
     } catch (e) {
-      toast(errMsg(e, 'Could not save preset'), { kind: 'error' })
+      toastError(e, 'Could not save preset')
     }
   }, [])
 
@@ -140,7 +134,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       const entries = await Promise.all(decks.map(async (d) => [d.id, await window.api.getDeckPreset(d.id)] as const))
       setResolved(Object.fromEntries(entries))
     } catch (e) {
-      toast(errMsg(e, 'Could not load deck presets'), { kind: 'error' })
+      toastError(e, 'Could not load deck presets')
     }
   }, [])
 
@@ -161,7 +155,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           setDraft(first.config)
         }
       } catch (e) {
-        toast(errMsg(e, 'Could not load presets'), { kind: 'error' })
+        toastError(e, 'Could not load presets')
       }
     })()
     void loadResolved()
@@ -214,7 +208,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       }
       setNameDialog(null)
     } catch (e) {
-      toast(errMsg(e, 'Could not save preset'), { kind: 'error' })
+      toastError(e, 'Could not save preset')
     }
   }
 
@@ -241,7 +235,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       await refreshDecks()
       await loadResolved()
     } catch (e) {
-      toast(errMsg(e, 'Could not delete preset'), { kind: 'error' })
+      toastError(e, 'Could not delete preset')
     }
   }
 
@@ -251,7 +245,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       await refreshDecks()
       await loadResolved()
     } catch (e) {
-      toast(errMsg(e, 'Could not assign preset'), { kind: 'error' })
+      toastError(e, 'Could not assign preset')
     }
   }
 
@@ -260,7 +254,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
     try {
       setCollection(await window.api.setCollectionSettings(patch))
     } catch (e) {
-      toast(errMsg(e, 'Could not save'), { kind: 'error' })
+      toastError(e, 'Could not save')
     }
   }
 
@@ -315,7 +309,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           <div className="divide-y divide-muted/15">
             <SettingRow
               title="Desired retention"
-              desc="The chance of remembering a card when it comes up for review. Higher means more reviews. Default: 90%."
+              info="How likely you are to remember a card when it comes up. Higher means more reviews. Default 90%."
               stacked
             >
               <div className="flex items-center gap-4">
@@ -338,14 +332,14 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Learning steps"
-              desc="Short waits for new cards, practised on the same day. With “1m 10m”, a new card comes back after 1 minute, then after 10 minutes. Press Good to move to the next step; after the last step the card is scheduled days ahead. Again restarts the steps. Use m for minutes, h for hours, d for days."
+              info="Waits for a new card on its first day. “1m 10m” = back after 1 minute, then 10 minutes. Good moves to the next step, Again starts over. Units: s, m, h, d."
             >
               <StepsField label="Learning steps" value={draft.learningSteps} onCommit={(s) => change({ learningSteps: s })} />
             </SettingRow>
 
             <SettingRow
               title="Relearning steps"
-              desc="The same, for cards you forgot. With “10m”, a card you press Again on during a review comes back after 10 minutes before returning to longer intervals. Leave empty to skip relearning."
+              info="Waits for a card you forgot during a review. “10m” = back after 10 minutes. Leave empty to skip."
             >
               <StepsField
                 label="Relearning steps"
@@ -354,7 +348,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="New cards per day" desc="The most new cards introduced each day.">
+            <SettingRow title="New cards per day" info="Most new cards introduced per day.">
               <NumberField
                 aria-label="New cards per day"
                 value={draft.newPerDay}
@@ -364,7 +358,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="Maximum reviews per day" desc="Maximum due reviews shown per day.">
+            <SettingRow title="Maximum reviews per day" info="Most due reviews shown per day.">
               <NumberField
                 aria-label="Maximum reviews per day"
                 value={draft.reviewsPerDay}
@@ -374,26 +368,27 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="Maximum interval" desc="Longest allowed time between reviews.">
+            <SettingRow title="Maximum interval" info="Longest time between two reviews of a card.">
               <NumberField
                 aria-label="Maximum interval in days"
                 value={draft.maximumInterval}
                 min={1}
                 max={36500}
-                suffix={`days (${formatYears(draft.maximumInterval)})`}
+                suffix="days"
                 onCommit={(n) => change({ maximumInterval: n })}
               />
             </SettingRow>
 
             <SettingRow
               title="Fuzz"
-              desc="Adds a small random shift to longer intervals. Without it, cards you added on the same day keep coming back on the same day, in large batches. Keep this on."
+              info="Spreads out cards added together so they don't all come back on the same day. Keep on."
             >
               <Switch aria-label="Fuzz" checked={draft.enableFuzz} onCheckedChange={(v) => change({ enableFuzz: v })} />
             </SettingRow>
 
-            <SettingRow title="New card order" desc="Order in which new cards are introduced.">
+            <SettingRow title="New card order" info="Order in which new cards are introduced.">
               <Segmented
+                fill
                 label="New card order"
                 value={draft.newOrder}
                 onChange={(v) => change({ newOrder: v })}
@@ -406,7 +401,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Bury siblings"
-              desc="After one side of a two-way card is answered, hide the other side until tomorrow."
+              info="After one side of a two-way card is answered, hide the other side until tomorrow."
             >
               <Switch
                 aria-label="Bury siblings"
@@ -421,7 +416,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       <Panel className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Collection</h3>
         <div className="divide-y divide-muted/15">
-          <SettingRow title="Next day starts at" desc="The hour a new study day begins, in your computer's local time. The default is 4:00, so a session after midnight still counts toward the previous day.">
+          <SettingRow title="Next day starts at" info="Hour a new study day begins, in local time. With 4:00, studying after midnight counts for the previous day.">
             <Select
               aria-label="Next day starts at"
               value={String(collection.dayStartHour)}
@@ -434,14 +429,14 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           </SettingRow>
           <SettingRow
             title="Learn ahead limit"
-            desc="When nothing else is left in a session, learning cards due within this many minutes are shown immediately instead of making you wait. Example: with 20 minutes, a card due in 8 minutes is shown now."
+            info="When nothing else is left, learning cards due within this many minutes are shown right away instead of waiting."
           >
             <NumberField
               aria-label="Learn ahead limit in minutes"
               value={collection.learnAheadMinutes}
               min={0}
               max={1440}
-              suffix="minutes"
+              suffix="min"
               onCommit={(n) => void saveCollection({ learnAheadMinutes: n })}
             />
           </SettingRow>
@@ -463,22 +458,23 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
                 key={d.id}
                 ref={isTarget ? deckRowRef : undefined}
                 className={clsx(
-                  'flex items-center justify-between gap-3 rounded-2xl px-3 py-2 transition-colors',
+                  'flex items-center justify-between gap-4 rounded-2xl px-3 py-1.5 transition-colors',
                   isTarget && !highlightDone && 'bg-accent/15 ring-2 ring-accent'
                 )}
                 style={{ paddingLeft: `${0.75 + d.depth * 1.25}rem` }}
               >
-                <span className="min-w-0 truncate text-sm font-medium">{d.name}</span>
-                <Select
-                  aria-label={`Preset for ${d.name}`}
-                  className="w-64"
-                  value={d.presetId ?? '__inherit__'}
-                  onValueChange={(v) => void assign(d.id, v)}
-                  options={[
-                    { value: '__inherit__', label: `Inherit (${parentName ?? 'default'})` },
-                    ...presets.map((p) => ({ value: p.id, label: p.name }))
-                  ]}
-                />
+                <span className="min-w-0 flex-1 text-sm font-medium break-words">{d.name}</span>
+                <div className="w-56 shrink-0">
+                  <Select
+                    aria-label={`Preset for ${d.name}`}
+                    value={d.presetId ?? '__inherit__'}
+                    onValueChange={(v) => void assign(d.id, v)}
+                    options={[
+                      { value: '__inherit__', label: `Inherit (${parentName ?? 'default'})` },
+                      ...presets.map((p) => ({ value: p.id, label: p.name }))
+                    ]}
+                  />
+                </div>
               </div>
             )
           })}

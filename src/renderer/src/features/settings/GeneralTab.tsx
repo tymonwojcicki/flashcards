@@ -37,7 +37,7 @@ export function GeneralTab(): React.JSX.Element {
 
         <SettingRow
           title="Hotkey hints"
-          desc="Show key badges on buttons and menus. Toggle with Ctrl+/."
+          desc="Show key badges on buttons and menus."
         >
           <Switch
             aria-label="Hotkey hints"
@@ -62,7 +62,7 @@ export function GeneralTab(): React.JSX.Element {
 
         {prefs.soundEffects && (
           <SettingRow title="Volume" desc="How loud the sounds are.">
-            <div className="flex items-center gap-3">
+            <div className="flex w-64 items-center gap-3">
               <Slider
                 aria-label="Sound volume"
                 sound={false}
@@ -87,7 +87,7 @@ export function GeneralTab(): React.JSX.Element {
         )}
 
         <SettingRow title="Font size" desc="Scales all text in the app.">
-          <div className="flex items-center gap-3">
+          <div className="flex w-64 items-center gap-3">
             <Slider
               aria-label="Font size"
               min={0.85}

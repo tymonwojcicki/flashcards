@@ -21,10 +21,10 @@ import {
   Zap
 } from 'lucide-react'
 import type { DeckNode, Id, StudyMode } from '@shared/types'
-import { ContextMenu, DropdownMenu, IconButton, Input, Kbd, confirm, toast } from '@renderer/components/ui'
+import { ContextMenu, DropdownMenu, IconButton, Input, Kbd, confirm, toast, toastError } from '@renderer/components/ui'
 import type { MenuEntry } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
-import { useEffectiveKeys } from '@renderer/lib/shortcuts'
+import { matches, useEffectiveKeys } from '@renderer/lib/shortcuts'
 import { plural } from '@renderer/lib/format'
 import { flattenDecks } from '@renderer/lib/decks'
 import { canMoveTo } from './actions'
@@ -105,7 +105,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   }, [focusId])
 
   const fail = (e: unknown, fallback: string): void => {
-    toast(e instanceof Error ? e.message : fallback, { kind: 'error' })
+    toastError(e, fallback)
   }
 
   const setCollapsed = async (d: DeckNode, collapsed: boolean): Promise<void> => {
@@ -295,8 +295,8 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   }
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
-      if (e.key !== studyKey) return
+      if (e.defaultPrevented || e.repeat) return
+      if (!matches(e, studyKey)) return
       if (renamingRef.current) return
       if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return
       const a = document.activeElement as HTMLElement | null

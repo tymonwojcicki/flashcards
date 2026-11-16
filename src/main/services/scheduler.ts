@@ -95,8 +95,3 @@ export function formatInterval(ms: number): string {
   if (d < 365) return `${+(d / 30).toFixed(1)}mo`
   return `${+(d / 365).toFixed(1)}y`
 }
-
-/** Validates "1m", "10m", "1h", "2d" step strings. */
-export function isValidStep(s: string): boolean {
-  return /^\d+(\.\d+)?[smhd]$/.test(s.trim())
-}

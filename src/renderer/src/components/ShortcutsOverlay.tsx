@@ -27,7 +27,7 @@ export function ShortcutsOverlay(): React.JSX.Element {
           Show hotkey hints in the interface
         </label>
         <div className="flex items-center gap-3">
-          <Kbd hotkey="Ctrl+/" force />
+          <Kbd hotkey={effectiveKeysFor('app.toggleHints', overrides)} force />
           <Switch id="overlay-hints" checked={showHints} onCheckedChange={() => toggleHints()} />
         </div>
       </div>

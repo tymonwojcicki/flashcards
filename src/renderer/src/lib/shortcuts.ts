@@ -38,6 +38,7 @@ export const SHORTCUTS = {
   'creator.image': { keys: 'Ctrl+Shift+I', label: 'Insert image', scope: 'creator' },
   'creator.deck': { keys: 'Ctrl+D', label: 'Choose deck', scope: 'creator' },
   'creator.reverse': { keys: 'Ctrl+R', label: 'Toggle reverse card', scope: 'creator' },
+  'browse.search': { keys: 'Ctrl+F', label: 'Search cards', scope: 'browse' },
   'deck.new': { keys: 'N', label: 'New deck', scope: 'decks' },
   'deck.study': { keys: 'Enter', label: 'Study selected deck', scope: 'decks' }
 } as const satisfies Record<string, Shortcut>
@@ -101,7 +102,8 @@ function parseCombo(keys: string): ParsedCombo {
   return combo
 }
 
-function matches(e: KeyboardEvent, keys: string): boolean {
+/** True if the key event is exactly the combo `keys` (e.g. "Ctrl+Enter", "Space"). */
+export function matches(e: KeyboardEvent, keys: string): boolean {
   const c = parseCombo(keys)
   if (!c.key) return false
   if (e.key.toLowerCase() !== c.key) return false

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { DEFAULT_PREFS } from '@shared/types'
 import type { DeckNode, Prefs, StartupState, StudyMode } from '@shared/types'
-import { toast } from '@renderer/components/ui/Toast'
+import { toast, toastError } from '@renderer/components/ui/Toast'
 import { playSound } from '@renderer/lib/sound'
 
 export type Route =
@@ -127,7 +127,7 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       set({ deckTree: await window.api.getDeckTree() })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load decks', { kind: 'error' })
+      toastError(e, 'Could not load decks')
     }
   },
 
@@ -141,7 +141,7 @@ export const useApp = create<AppState>((set, get) => ({
     } catch (e) {
       set({ prefs: prev })
       applyPrefs(prev)
-      toast(e instanceof Error ? e.message : 'Could not save settings', { kind: 'error' })
+      toastError(e, 'Could not save settings')
     }
   },
 

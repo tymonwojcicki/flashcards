@@ -1,15 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { DB_FILE } from '../db/collection'
+import { BACKUP_DIR, backupsToDelete, isConflictName, stamp } from './backupCore'
 
-export const BACKUP_DIR = 'backups'
-const KEEP_RECENT = 10
-const KEEP_DAILY = 7
-
-const stamp = (d = new Date()) => {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-}
+export { BACKUP_DIR }
 
 /** Copy collection.db into backups/ and prune. Returns the backup path. */
 export function backup(dataDir: string): string | null {
@@ -23,23 +17,9 @@ export function backup(dataDir: string): string | null {
   return out
 }
 
-/** Keep the newest KEEP_RECENT backups plus the newest backup of each of the last KEEP_DAILY days. */
+/** Keep the newest backups plus one per recent day (rules in backupCore). */
 export function prune(dir: string): void {
-  const files = fs
-    .readdirSync(dir)
-    .filter((f) => /^collection-\d{8}-\d{6}\.db$/.test(f))
-    .sort()
-    .reverse() // newest first
-  const keep = new Set(files.slice(0, KEEP_RECENT))
-  const days = new Set<string>()
-  for (const f of files) {
-    const day = f.slice(11, 19)
-    if (!days.has(day) && days.size < KEEP_DAILY) {
-      days.add(day)
-      keep.add(f)
-    }
-  }
-  for (const f of files) if (!keep.has(f)) fs.rmSync(path.join(dir, f), { force: true })
+  for (const f of backupsToDelete(fs.readdirSync(dir))) fs.rmSync(path.join(dir, f), { force: true })
 }
 
 /**
@@ -50,7 +30,7 @@ export function findConflicts(dataDir: string): { file: string; modified: number
   try {
     return fs
       .readdirSync(dataDir)
-      .filter((f) => f !== DB_FILE && /^collection.*\.db$/i.test(f))
+      .filter((f) => isConflictName(f, DB_FILE))
       .map((f) => {
         const st = fs.statSync(path.join(dataDir, f))
         return { file: f, modified: st.mtimeMs, size: st.size }

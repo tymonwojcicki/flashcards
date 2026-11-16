@@ -100,3 +100,8 @@ export function Toaster(): React.JSX.Element {
     </div>
   )
 }
+
+/** Error toast from a caught value: the Error's message, or `fallback` for anything else. */
+export function toastError(e: unknown, fallback: string): void {
+  toast(e instanceof Error ? e.message : fallback, { kind: 'error' })
+}

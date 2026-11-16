@@ -1,7 +1,7 @@
 // Platform-neutral import/export (works on bytes/strings; file I/O is done by the caller).
 import JSZip from 'jszip'
 import type { BaseCollection as Collection } from '../db/core'
-import { newId } from '../db/core'
+import { newId, placeholders } from '../db/core'
 import type { Id, ImportResult, ImportRow } from '../../shared/types'
 import { createDeck, ensureDeckPath, getDeck, subtreeIds } from './decks'
 import { createNote, encodeTags, decodeTags, insertCard } from './notes'
@@ -138,7 +138,7 @@ export async function exportFdeck(
   port: MediaPort
 ): Promise<Uint8Array> {
   const ids = subtreeIds(col, deckId)
-  const ph = ids.map(() => '?').join(',')
+  const ph = placeholders(ids.length)
   const decks = col.all<{ id: string; parent_id: string | null; name: string }>(
     `SELECT id, parent_id, name FROM decks WHERE id IN (${ph})`,
     ids
@@ -284,7 +284,7 @@ const csvCell = (s: string) => `"${s.replace(/"/g, '""')}"`
 
 export function exportCsv(col: Collection, deckId: Id): string {
   const ids = subtreeIds(col, deckId)
-  const ph = ids.map(() => '?').join(',')
+  const ph = placeholders(ids.length)
   const rows = col.all<{ deck_id: string; front: string; back: string; tags: string }>(
     `SELECT deck_id, front, back, tags FROM notes WHERE deck_id IN (${ph}) ORDER BY created_at`,
     ids

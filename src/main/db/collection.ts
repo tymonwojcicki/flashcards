@@ -72,7 +72,7 @@ export class Collection extends BaseCollection {
   /** True if the file on disk was modified by someone else (e.g. a sync client) since we last read/wrote it. */
   changedOnDisk(): boolean {
     try {
-      return fs.statSync(this.file).mtimeMs > this.knownMtime + 1
+      return Math.abs(fs.statSync(this.file).mtimeMs - this.knownMtime) > 1 // older mtimes count too: a sync client may restore a file
     } catch {
       return false
     }

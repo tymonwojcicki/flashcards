@@ -102,6 +102,7 @@ function ToggleRow(props: { id: string; icon: React.ReactNode; label: string; ch
 }
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }): React.JSX.Element {
+  const helpKeys = useEffectiveKeys('app.help')
   const deckTree = useApp((s) => s.deckTree)
   const showHints = useApp((s) => s.prefs.showHotkeyHints)
   const theme = useApp((s) => resolveTheme(s.prefs.theme))
@@ -197,7 +198,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               >
                 <Keyboard size={19} />
                 <span className="flex-1 text-left whitespace-nowrap">Shortcuts</span>
-                <Kbd hotkey="?" className="shrink-0" />
+                <Kbd hotkey={helpKeys} className="shrink-0" />
               </button>
               <ToggleRow id="hint-switch" icon={<Captions size={19} />} label="Hotkey hints" checked={showHints} onChange={toggleHints} />
               <ToggleRow

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { Rating } from '@shared/types'
 import type { IntervalPreview, StudyMode, StudySession } from '@shared/types'
-import { Button, DropdownMenu, EmptyState, IconButton, Kbd, toast } from '@renderer/components/ui'
+import { Button, DropdownMenu, EmptyState, IconButton, Kbd, toast, toastError } from '@renderer/components/ui'
 import type { MenuEntry } from '@renderer/components/ui'
 import { RichHtml } from '@renderer/lib/html'
 import { deckPathLabel, relativeDue } from '@renderer/lib/format'
@@ -177,7 +177,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       })
       .catch((e: unknown) => {
         if (cancelled) return
-        toast(e instanceof Error ? e.message : 'Could not load session', { kind: 'error' })
+        toastError(e, 'Could not load session')
         setPhase('error')
       })
     return () => {
@@ -254,7 +254,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       }))
       commit(q)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not save answer', { kind: 'error' })
+      toastError(e, 'Could not save answer')
     } finally {
       busy.current = false
     }
@@ -298,7 +298,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       playSound('undo')
       toast('Undone')
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not undo', { kind: 'error' })
+      toastError(e, 'Could not undo')
     } finally {
       busy.current = false
     }
@@ -312,7 +312,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       commit(removeById(queueRef.current, id))
       toast('Card buried until tomorrow')
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not bury card', { kind: 'error' })
+      toastError(e, 'Could not bury card')
     }
   }
 
@@ -334,7 +334,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
         }
       })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not suspend card', { kind: 'error' })
+      toastError(e, 'Could not suspend card')
     }
   }
 
@@ -385,19 +385,26 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
     new Set(history.current.map((h) => h.sc.card.id))
   )
 
+  const exitKeys = useEffectiveKeys('study.exit')
+  const undoKeys = useEffectiveKeys('study.undo')
+  const revealKeys = useEffectiveKeys('study.reveal')
+  const editKeys = useEffectiveKeys('study.edit')
+  const buryKeys = useEffectiveKeys('study.bury')
+  const suspendKeys = useEffectiveKeys('study.suspend')
+
   const moreItems: MenuEntry[] = [
-    { label: 'Edit card', icon: <Pencil size={16} />, hotkey: 'E', onSelect: () => setEditOpen(true), disabled: !cur },
-    { label: 'Bury until tomorrow', icon: <EyeOff size={16} />, hotkey: 'B', onSelect: () => void bury(), disabled: !cur },
-    { label: 'Suspend card', icon: <Pause size={16} />, hotkey: 'S', onSelect: () => void suspend(), disabled: !cur },
+    { label: 'Edit card', icon: <Pencil size={16} />, hotkey: editKeys, onSelect: () => setEditOpen(true), disabled: !cur },
+    { label: 'Bury until tomorrow', icon: <EyeOff size={16} />, hotkey: buryKeys, onSelect: () => void bury(), disabled: !cur },
+    { label: 'Suspend card', icon: <Pause size={16} />, hotkey: suspendKeys, onSelect: () => void suspend(), disabled: !cur },
     { type: 'separator' },
-    { label: 'Undo last answer', icon: <Undo2 size={16} />, hotkey: 'Ctrl+Z', onSelect: () => void undo() }
+    { label: 'Undo last answer', icon: <Undo2 size={16} />, hotkey: undoKeys, onSelect: () => void undo() }
   ]
 
   // ---- screens ----
   const topBar = (
     <header className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <IconButton label="Back to decks" hotkey="Escape" icon={<ArrowLeft size={18} />} onClick={exit} tooltipSide="bottom" />
+        <IconButton label="Back to decks" hotkey={exitKeys} icon={<ArrowLeft size={18} />} onClick={exit} tooltipSide="bottom" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-text">{pathLabel || 'Study'}</div>
           <div className="text-xs text-muted">
@@ -413,7 +420,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
         )}
         <IconButton
           label="Undo last answer"
-          hotkey="Ctrl+Z"
+          hotkey={undoKeys}
           icon={<Undo2 size={18} />}
           onClick={() => void undo()}
           disabled={phase !== 'ready' || history.current.length === 0}
@@ -509,7 +516,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
           ))}
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Button variant="primary" size="lg" onClick={exit} hotkey="Escape">
+          <Button variant="primary" size="lg" onClick={exit} hotkey={exitKeys}>
             Back to decks
           </Button>
           {mode !== 'cram' && (
@@ -564,7 +571,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
       </div>
 
       {!revealed ? (
-        <Button variant="accent" size="lg" hotkey="Space" onClick={reveal} className="min-w-[14rem]">
+        <Button variant="accent" size="lg" hotkey={revealKeys} onClick={reveal} className="min-w-[14rem]">
           Show answer
         </Button>
       ) : (
@@ -587,6 +594,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
 
 function EmptySession({ deckId, mode }: { deckId: string; mode: StudyMode }): React.JSX.Element {
   const navigate = useApp((s) => s.navigate)
+  const exitKeys = useEffectiveKeys('study.exit')
   const [nextDue, setNextDue] = useState<number | null>(null)
 
   useEffect(() => {
@@ -628,7 +636,7 @@ function EmptySession({ deckId, mode }: { deckId: string; mode: StudyMode }): Re
           {mode !== 'cram' && (
             <Button onClick={() => navigate({ name: 'study', deckId, mode: 'cram' })}>Practice all cards</Button>
           )}
-          <Button variant="ghost" hotkey="Escape" onClick={() => navigate({ name: 'decks' })}>
+          <Button variant="ghost" hotkey={exitKeys} onClick={() => navigate({ name: 'decks' })}>
             Back
           </Button>
         </div>

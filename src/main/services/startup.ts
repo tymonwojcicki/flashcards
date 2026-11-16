@@ -50,7 +50,7 @@ export function createSampleDeck(col: Collection): void {
   add(
     math,
     '<p>Write the quadratic formula.</p>',
-    block('x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}'),
+    block(String.raw`x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}`),
     ['math', 'algebra']
   )
 }

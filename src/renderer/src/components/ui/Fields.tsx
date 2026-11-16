@@ -181,15 +181,12 @@ export function Slider({
       max={max}
       step={step}
       disabled={disabled}
-      className={clsx('relative flex h-6 w-full touch-none items-center select-none', className)}
+      className={clsx('neu-slider relative flex h-6 w-full touch-none items-center select-none', className)}
     >
       <RSlider.Track className="neu-inset relative h-2.5 grow rounded-full">
-        <RSlider.Range className="accent-fill absolute h-full rounded-full bg-accent/60 shadow-[0_0_10px_var(--accent-glow)]" />
+        <RSlider.Range className="slider-range accent-fill absolute h-full rounded-full bg-accent/60 shadow-[0_0_10px_var(--accent-glow)]" />
       </RSlider.Track>
-      <RSlider.Thumb
-        aria-label={rest['aria-label']}
-        className="neu-raised-sm block h-5 w-5 rounded-full transition-transform duration-150 hover:scale-110 active:scale-95"
-      />
+      <RSlider.Thumb aria-label={rest['aria-label']} className="slider-thumb neu-raised-sm block h-5 w-5 rounded-full" />
     </RSlider.Root>
   )
 }

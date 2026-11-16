@@ -9,6 +9,7 @@ import * as io from '../main/services/importExport'
 import * as trash from '../main/services/trash'
 import { autoBackupDue, getAutoBackup, onOpen, setAutoBackup } from '../main/services/startup'
 import { MEDIA_DIR, base64ToBytes, mediaNameFromUrl, saveMedia, type MediaPort } from '../main/services/mediaCore'
+import { BACKUP_DIR, backupsToDelete, isConflictName, isForeignLock, safeFileName, stamp } from '../main/services/backupCore'
 import type { Api, MainEvent, RendererApi } from '../shared/api'
 import { API_METHODS } from '../shared/api'
 import { DEFAULT_PREFS, type LockStatus, type Prefs, type StartupState } from '../shared/types'
@@ -30,11 +31,24 @@ class WebCollection extends BaseCollection {
 
   protected override persist(bytes: Uint8Array): Promise<void> {
     // Serialise writes so an older snapshot never overwrites a newer one.
-    this.chain = this.chain.then(async () => {
-      await this.store.write(DB_FILE, bytes)
-      this.knownModified = (await this.store.modified(DB_FILE)) ?? Date.now()
-    })
-    return this.chain.catch((e) => console.error('[web] save failed', e))
+    // A failed write must not poison the chain (later saves would be skipped) and must stay pending.
+    this.chain = this.chain
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await this.store.write(DB_FILE, bytes)
+          this.knownModified = (await this.store.modified(DB_FILE)) ?? Date.now()
+        } catch (e) {
+          console.error('[web] save failed', e)
+          this.dirty = true // retried by the next change, or when the tab is hidden / closed
+        }
+      })
+    return this.chain
+  }
+
+  /** Resolves once every write started so far has finished. */
+  settled(): Promise<void> {
+    return this.chain
   }
 
   async flush(): Promise<void> {
@@ -44,7 +58,7 @@ class WebCollection extends BaseCollection {
 
   async changedOnDisk(): Promise<boolean> {
     const m = await this.store.modified(DB_FILE)
-    return m !== null && m > this.knownModified + 1
+    return m !== null && Math.abs(m - this.knownModified) > 1
   }
 
   async reload(): Promise<void> {
@@ -59,14 +73,19 @@ const sqlJs = async () => (SQL ??= await initSqlJs({ locateFile: () => wasmUrl }
 
 // ---------------- device lock (same format as desktop app) ----------------
 const LOCK_FILE = 'app.lock'
-const STALE_MS = 3 * 60_000
+let sessionDevice: string | null = null
 const deviceName = (): string => {
-  let d = localStorage.getItem('fc-device')
-  if (!d) {
-    d = `Browser-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
-    localStorage.setItem('fc-device', d)
+  try {
+    let d = localStorage.getItem('fc-device')
+    if (!d) {
+      d = `Browser-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+      localStorage.setItem('fc-device', d)
+    }
+    return d
+  } catch {
+    // Storage blocked (private window): a name that lasts for this page load.
+    return (sessionDevice ??= `Browser-${Math.random().toString(36).slice(2, 6).toUpperCase()}`)
   }
-  return d
 }
 
 // ---------------- media ----------------
@@ -174,11 +193,6 @@ function download(name: string, data: Uint8Array | string, type: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
 }
 
-const stamp = (d = new Date()) => {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-}
-
 // ---------------- the backend ----------------
 export class WebBackend {
   col!: WebCollection
@@ -235,8 +249,7 @@ export class WebBackend {
       const raw = await this.store.read(LOCK_FILE)
       if (!raw) return null
       const l = JSON.parse(new TextDecoder().decode(raw)) as { device: string; heartbeat: number; since: number }
-      if (l.device === deviceName() || Date.now() - l.heartbeat > STALE_MS) return null
-      return l
+      return isForeignLock(l, deviceName()) ? l : null
     } catch {
       return null
     }
@@ -267,30 +280,17 @@ export class WebBackend {
     await this.col.flush()
     const bytes = await this.store.read(DB_FILE)
     if (!bytes) return null
-    const name = `backups/collection-${stamp()}.db`
+    const name = `${BACKUP_DIR}/collection-${stamp()}.db`
     await this.store.write(name, bytes)
-    // prune: newest 10 + newest per day for 7 days
-    const files = (await this.store.list('backups'))
-      .map((f) => f.name)
-      .filter((f) => /^collection-\d{8}-\d{6}\.db$/.test(f))
-      .sort()
-      .reverse()
-    const keep = new Set(files.slice(0, 10))
-    const days = new Set<string>()
-    for (const f of files) {
-      const day = f.slice(11, 19)
-      if (!days.has(day) && days.size < 7) {
-        days.add(day)
-        keep.add(f)
-      }
+    for (const f of backupsToDelete((await this.store.list(BACKUP_DIR)).map((f) => f.name))) {
+      await this.store.remove(`${BACKUP_DIR}/${f}`)
     }
-    for (const f of files) if (!keep.has(f)) await this.store.remove(`backups/${f}`)
     return name
   }
 
   async conflicts() {
     if (this.store.kind !== 'folder') return []
-    return (await this.store.list('')).filter((f) => f.name !== DB_FILE && /^collection.*\.db$/i.test(f.name)).map((f) => ({
+    return (await this.store.list('')).filter((f) => isConflictName(f.name, DB_FILE)).map((f) => ({
       file: f.name,
       modified: f.modified,
       size: f.size
@@ -317,7 +317,9 @@ export class WebBackend {
   }
 
   async checkExternalChanges(): Promise<void> {
-    if (!this.col || this.col.hasUnsavedChanges || !(await this.col.changedOnDisk())) return
+    if (!this.col) return
+    await this.col.settled() // our own in-flight write must not look like an external change
+    if (this.col.hasUnsavedChanges || !(await this.col.changedOnDisk())) return
     await this.col.reload()
     study.clearUndo()
     this.emit('collection-reloaded')
@@ -362,7 +364,7 @@ export class WebBackend {
           await this.col.reload()
           study.clearUndo()
         }
-        if (bytes) await this.store.write(`backups/conflict-${Date.now()}-${file}`, bytes)
+        if (bytes) await this.store.write(`${BACKUP_DIR}/conflict-${Date.now()}-${file}`, bytes)
         await this.store.remove(file)
         this.emit('collection-reloaded')
         return this.startupState()
@@ -484,7 +486,7 @@ export class WebBackend {
       },
       importRows: (rows, d) => io.importRows(c(), rows, d, port(), null),
       exportDeck: async (deckId, format, includeProgress) => {
-        const name = (decks.getDeck(c(), deckId)?.name ?? 'deck').replace(/[<>:"/\\|?*]+/g, '_')
+        const name = safeFileName(decks.getDeck(c(), deckId)?.name ?? 'deck')
         if (format === 'fdeck') download(`${name}.fdeck`, await io.exportFdeck(c(), deckId, includeProgress, port()), 'application/zip')
         else download(`${name}.csv`, io.exportCsv(c(), deckId), 'text/csv;charset=utf-8')
         return `${name}.${format}`

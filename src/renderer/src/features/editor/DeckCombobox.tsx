@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { ChevronDown, Folder, Plus } from 'lucide-react'
 import type { DeckNode, Id } from '@shared/types'
-import { toast } from '@renderer/components/ui'
+import { toastError } from '@renderer/components/ui'
 import { flattenDecks } from '@renderer/lib/decks'
 import { deckPathLabel } from '@renderer/lib/format'
 
@@ -130,7 +130,7 @@ export function DeckCombobox({
         onDone?.()
       }
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not create deck', { kind: 'error' })
+      toastError(e, 'Could not create deck')
     }
   }
 

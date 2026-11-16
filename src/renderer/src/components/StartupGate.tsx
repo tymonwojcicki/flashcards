@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useApp } from '@renderer/store/app'
-import { Button, Dialog, toast } from '@renderer/components/ui'
+import { Button, Dialog, toastError } from '@renderer/components/ui'
 import { formatBytes, formatDateTime } from '@renderer/lib/format'
 import type { StartupState } from '@shared/types'
 
@@ -19,7 +19,7 @@ export function StartupGate(): React.JSX.Element | null {
       setStartup(await fn())
       await refreshDecks()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Something went wrong', { kind: 'error' })
+      toastError(e, 'Something went wrong')
     } finally {
       setBusy(false)
     }

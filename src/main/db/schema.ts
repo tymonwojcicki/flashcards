@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS cards (
 );
 CREATE INDEX IF NOT EXISTS idx_cards_note ON cards(note_id);
 CREATE INDEX IF NOT EXISTS idx_cards_due ON cards(state, due);
+-- MAX(position) on every new note (imports add thousands) and ORDER BY position when studying.
+CREATE INDEX IF NOT EXISTS idx_cards_position ON cards(position);
 
 CREATE TABLE IF NOT EXISTS review_log (
   id             TEXT PRIMARY KEY,

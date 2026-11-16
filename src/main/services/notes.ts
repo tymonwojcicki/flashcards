@@ -1,6 +1,6 @@
 import type { SqlValue } from 'sql.js'
 import type { BaseCollection as Collection } from '../db/core'
-import { newId } from '../db/core'
+import { newId, placeholders } from '../db/core'
 import { CardState, type BrowseQuery, type BrowseRow, type Card, type Id, type Note } from '../../shared/types'
 import { deckPath, getCollectionSettings, subtreeIds } from './decks'
 import { nextDayStart } from './time'
@@ -129,8 +129,6 @@ export function updateNote(
   return getNote(col, id)!
 }
 
-const placeholders = (n: number) => Array(n).fill('?').join(',')
-
 /** Moves the notes and their cards to the Trash. Returns the trash id (for Undo). */
 export function deleteNotes(col: Collection, ids: Id[]): string | null {
   return trashNotes(col, ids)
@@ -182,13 +180,8 @@ export function listTags(col: Collection, deckId?: Id | null): string[] {
   return [...set].sort((a, b) => a.localeCompare(b))
 }
 
-/** Strip HTML tags for searching/display. */
-export const stripHtml = (s: string): string =>
-  s
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+/** Escape LIKE wildcards so a search for "50%" or "a_b" matches literally (use with ESCAPE '\\'). */
+const likeEscape = (s: string): string => s.replace(/[\\%_]/g, '\\$&')
 
 export function browse(col: Collection, q: BrowseQuery): { rows: BrowseRow[]; total: number } {
   const where: string[] = []
@@ -200,14 +193,14 @@ export function browse(col: Collection, q: BrowseQuery): { rows: BrowseRow[]; to
   }
   if (q.search?.trim()) {
     for (const term of q.search.trim().split(/\s+/)) {
-      where.push('(n.front LIKE ? OR n.back LIKE ? OR n.tags LIKE ?)')
-      const like = `%${term}%`
+      where.push("(n.front LIKE ? ESCAPE '\\' OR n.back LIKE ? ESCAPE '\\' OR n.tags LIKE ? ESCAPE '\\')")
+      const like = `%${likeEscape(term)}%`
       params.push(like, like, like)
     }
   }
   if (q.tag) {
-    where.push('n.tags LIKE ?')
-    params.push(`% ${q.tag} %`)
+    where.push("n.tags LIKE ? ESCAPE '\\'")
+    params.push(`% ${likeEscape(q.tag)} %`)
   }
   if (q.state === 'suspended') where.push('c.suspended = 1')
   else if (q.state === 'due') {

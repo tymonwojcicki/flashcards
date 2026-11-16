@@ -14,6 +14,7 @@ import StudyPage from '@renderer/pages/StudyPage'
 import StatsPage from '@renderer/pages/StatsPage'
 import SettingsPage from '@renderer/pages/SettingsPage'
 import ImportPage from '@renderer/pages/ImportPage'
+import { playSound } from '@renderer/lib/sound'
 
 function CurrentPage(): React.JSX.Element {
   const route = useApp((s) => s.route)
@@ -74,7 +75,14 @@ export default function App(): React.JSX.Element {
   }, [init])
 
   useShortcut('app.search', () => setPaletteOpen(!paletteOpen), { allowInInputs: true })
-  useShortcut('app.toggleHints', () => toggleHints(), { allowInInputs: true })
+  useShortcut(
+    'app.toggleHints',
+    () => {
+      playSound('toggle') // same click as flipping the switch
+      toggleHints()
+    },
+    { allowInInputs: true }
+  )
   useShortcut('app.help', () => setHelpOpen(!helpOpen))
   useShortcut('nav.decks', () => navigate({ name: 'decks' }), { allowInInputs: true })
   useShortcut('nav.add', () => navigate({ name: 'add' }), { allowInInputs: true })

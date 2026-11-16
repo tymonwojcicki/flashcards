@@ -2,7 +2,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { AlertTriangle, ArrowLeft, Check, FileText, FolderOpen, Layers, Upload } from 'lucide-react'
-import { Button, Field, Input, Panel, Select, Switch, toast, Well } from '@renderer/components/ui'
+import { Button, Field, Input, Panel, Select, Switch, Well, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { playSound } from '@renderer/lib/sound'
 import { flattenDecks } from '@renderer/lib/decks'
@@ -130,7 +130,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
       const f = await window.api.pickTextFile()
       if (f) loadFile(f)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not open file', { kind: 'error' })
+      toastError(e, 'Could not open file')
     }
   }
 
@@ -149,7 +149,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
       }
       loadFile({ path, name: f.name, text })
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not read file', { kind: 'error' })
+      toastError(err, 'Could not read file')
     }
   }
 
@@ -191,7 +191,7 @@ export default function ImportPage({ deckId }: { deckId?: string }): React.JSX.E
       playSound('import')
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setBurst(true)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Import failed', { kind: 'error' })
+      toastError(e, 'Import failed')
     } finally {
       setBusy(false)
     }

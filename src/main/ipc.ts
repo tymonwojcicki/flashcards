@@ -7,9 +7,9 @@ import type { Api, IpcResult } from '../shared/api'
 import * as decks from './services/decks'
 import * as notes from './services/notes'
 import * as study from './services/study'
-import { clearUndo } from './services/study'
 import * as io from './services/importExport'
 import { backup } from './services/backup'
+import { safeFileName } from './services/backupCore'
 import * as trash from './services/trash'
 import { onOpen } from './services/startup'
 import { MEDIA_SCHEME, nodeMediaPort, resolveMedia, saveMediaBytes, saveMediaFile } from "./services/media"
@@ -28,8 +28,6 @@ async function resolveCsvImage(baseDir: string, src: string): Promise<string | n
 
 /** Backup file chosen by pickBackup, waiting for the user's confirmation. */
 let pendingBackup: Uint8Array | null = null
-
-const safeName = (s: string) => s.replace(/[<>:"/\\|?*]+/g, '_').slice(0, 80) || 'deck'
 
 const handlers: Handlers = {
   // app
@@ -74,7 +72,7 @@ const handlers: Handlers = {
     c().restoreFrom(pendingBackup)
     pendingBackup = null
     c().saveNow()
-    clearUndo()
+    study.clearUndo()
     onOpen(c())
   },
 
@@ -149,7 +147,7 @@ const handlers: Handlers = {
   importRows: (rows, deckId, baseDir) =>
     io.importRows(c(), rows, deckId, nodeMediaPort(c().dir), baseDir ? (src) => resolveCsvImage(baseDir, src) : null),
   exportDeck: async (deckId, format, includeProgress) => {
-    const name = safeName(decks.getDeck(c(), deckId)?.name ?? 'deck')
+    const name = safeFileName(decks.getDeck(c(), deckId)?.name ?? 'deck')
     const r = await dialog.showSaveDialog(win(), {
       defaultPath: `${name}.${format}`,
       filters:

@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Bold, Image as ImageIcon, Italic, List, Sigma, Underline as UnderlineIcon } from 'lucide-react'
-import { IconButton, Kbd, toast } from '@renderer/components/ui'
+import { IconButton, Kbd, toastError } from '@renderer/components/ui'
 import { useEffectiveKeys } from '@renderer/lib/shortcuts'
 import type { MathfieldElement } from 'mathlive'
 import { MathBlock, MathInline } from './mathExtensions'
@@ -256,7 +256,7 @@ export function CardField({
         try {
           insertImageUrl(await saveImageFile(f), pos)
         } catch (e) {
-          toast(e instanceof Error ? e.message : 'Could not add image', { kind: 'error' })
+          toastError(e, 'Could not add image')
         }
       }
     },
@@ -268,7 +268,7 @@ export function CardField({
       const url = await window.api.pickImage()
       if (url) insertImageUrl(url)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not add image', { kind: 'error' })
+      toastError(e, 'Could not add image')
     }
   }, [insertImageUrl])
 

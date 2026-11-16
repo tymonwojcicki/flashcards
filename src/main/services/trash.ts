@@ -3,10 +3,10 @@
 // Restoring re-inserts the rows. Media files are never deleted, so images keep working.
 import type { SqlValue } from 'sql.js'
 import type { BaseCollection as Collection } from '../db/core'
-import { newId } from '../db/core'
+import { newId, placeholders as ph } from '../db/core'
 import { TRASH_DAYS, type TrashItem } from '../../shared/dataSafety'
 import type { Id } from '../../shared/types'
-import { ensureDeckPath } from './decks'
+import { deckPath, ensureDeckPath } from './decks'
 
 type Row = Record<string, SqlValue>
 
@@ -22,7 +22,6 @@ interface Payload {
 }
 
 const DAY_MS = 86_400_000
-const ph = (n: number) => Array(n).fill('?').join(',')
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
 /** Run a query for rows whose key column is in `ids`, in chunks (SQLite parameter limit). */
@@ -31,16 +30,6 @@ function rowsFor(col: Collection, table: string, key: string, ids: string[]): Ro
   for (let i = 0; i < ids.length; i += 500) {
     const chunk = ids.slice(i, i + 500)
     out.push(...col.all<Row>(`SELECT * FROM ${table} WHERE ${key} IN (${ph(chunk.length)})`, chunk))
-  }
-  return out
-}
-
-function pathOf(col: Collection, deckId: string): string[] {
-  const out: string[] = []
-  let cur: { name: string; parent_id: string | null } | undefined = col.get('SELECT name, parent_id FROM decks WHERE id = ?', [deckId])
-  while (cur) {
-    out.unshift(cur.name)
-    cur = cur.parent_id ? col.get('SELECT name, parent_id FROM decks WHERE id = ?', [cur.parent_id]) : undefined
   }
   return out
 }
@@ -108,7 +97,7 @@ export function trashNotes(col: Collection, ids: Id[], now = Date.now()): string
     const deckPaths: Record<string, string[]> = {}
     for (const n of snap.notes) {
       const d = n.deck_id as string
-      deckPaths[d] ??= pathOf(col, d)
+      deckPaths[d] ??= deckPath(col, d)
     }
     const trashId = store(col, 'notes', plural(snap.cards.length, 'card'), { ...snap, ancestors: [], deckPaths }, now)
     col.run(`DELETE FROM notes WHERE id IN (${ph(ids.length)})`, ids)

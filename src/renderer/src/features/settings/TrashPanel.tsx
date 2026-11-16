@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { RotateCcw, Trash2 } from 'lucide-react'
-import { Button, Panel, Well, confirm, toast } from '@renderer/components/ui'
+import { Button, Panel, Well, confirm, toast, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { TRASH_DAYS, type TrashItem } from '@shared/dataSafety'
 
@@ -22,7 +22,7 @@ export function TrashPanel(): React.JSX.Element {
   }, [])
   useEffect(() => void load(), [load])
 
-  const fail = (e: unknown, fallback: string): void => toast(e instanceof Error ? e.message : fallback, { kind: 'error' })
+  const fail = (e: unknown, fallback: string): void => toastError(e, fallback)
 
   const restore = async (t: TrashItem): Promise<void> => {
     try {

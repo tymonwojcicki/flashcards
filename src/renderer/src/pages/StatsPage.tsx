@@ -1,7 +1,7 @@
 // Prop contract: { deckId?: string (limit stats to a deck subtree) }
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, CalendarClock, CheckCircle2, Flame, Layers, Target } from 'lucide-react'
-import { EmptyState, Field, Panel, Select, toast } from '@renderer/components/ui'
+import { EmptyState, Field, Panel, Select, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { flattenDecks } from '@renderer/lib/decks'
 import { plural } from '@renderer/lib/format'
@@ -52,7 +52,7 @@ export default function StatsPage({ deckId }: { deckId?: string }): React.JSX.El
       .then((s) => {
         if (!cancelled) setStats(s)
       })
-      .catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load statistics', { kind: 'error' }))
+      .catch((e: unknown) => toastError(e, 'Could not load statistics'))
     return () => {
       cancelled = true
     }

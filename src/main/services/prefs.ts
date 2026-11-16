@@ -22,7 +22,10 @@ export class PrefsStore {
   set(patch: Partial<Prefs>): Prefs {
     this.data = { ...this.data, ...patch }
     fs.mkdirSync(path.dirname(this.file), { recursive: true })
-    fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2))
+    // Atomic: a crash mid-write must not leave a truncated file (it would reset dataDir to the default).
+    const tmp = this.file + '.tmp'
+    fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2))
+    fs.renameSync(tmp, this.file)
     return this.get()
   }
 }

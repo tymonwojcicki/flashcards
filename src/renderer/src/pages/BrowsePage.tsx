@@ -3,9 +3,10 @@ import clsx from 'clsx'
 import { FolderInput, Pause, Pencil, Play, RotateCcw, Search, Tag, Trash2, X } from 'lucide-react'
 import { CardState } from '@shared/types'
 import type { BrowseQuery, BrowseRow, Id } from '@shared/types'
-import { Button, EmptyState, Input, Panel, Select, confirm, toast } from '@renderer/components/ui'
+import { Button, EmptyState, Input, Panel, Select, confirm, toast, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { deckPathLabel, plural } from '@renderer/lib/format'
+import { useShortcut } from '@renderer/lib/shortcuts'
 import { RichHtml } from '@renderer/lib/html'
 import { DeckCombobox } from '@renderer/features/editor/DeckCombobox'
 import { plainText } from '@renderer/features/browse/text'
@@ -162,9 +163,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
         setFocusedId((f) => (f && ids.has(f) ? f : null))
       } catch (e) {
         if (token === req.current)
-          toast(e instanceof Error ? e.message : 'Could not load cards', {
-            kind: 'error'
-          })
+          toastError(e, 'Could not load cards')
       } finally {
         if (token === req.current) setLoading(false)
       }
@@ -189,9 +188,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
       setRows((r) => [...r, ...res.rows])
       setTotal(res.total)
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load cards', {
-        kind: 'error'
-      })
+      toastError(e, 'Could not load cards')
     } finally {
       if (token === req.current) setLoading(false)
     }
@@ -203,18 +200,14 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
     void refreshDecks()
   }, [reload, loadTags, refreshDecks])
 
-  // Ctrl+F focuses the search box.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        searchRef.current?.focus()
-        searchRef.current?.select()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useShortcut(
+    'browse.search',
+    () => {
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    },
+    { allowInInputs: true }
+  )
 
   const focusedRow = rows.find((r) => r.cardId === focusedId) ?? null
   const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.cardId)), [rows, selected])
@@ -299,9 +292,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
       await afterMutation()
       if (okMsg) toast(okMsg, { kind: 'success' })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Something went wrong', {
-        kind: 'error'
-      })
+      toastError(e, 'Something went wrong')
     }
   }
 

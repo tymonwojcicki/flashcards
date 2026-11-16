@@ -80,8 +80,10 @@ export function updatePreset(col: Collection, id: Id, patch: { name?: string; co
 
 export function deletePreset(col: Collection, id: Id): void {
   if (id === DEFAULT_PRESET_ID) throw new Error('The default preset cannot be deleted')
-  col.run('UPDATE decks SET preset_id = NULL WHERE preset_id = ?', [id])
-  col.run('DELETE FROM presets WHERE id = ?', [id])
+  col.tx(() => {
+    col.run('UPDATE decks SET preset_id = NULL WHERE preset_id = ?', [id])
+    col.run('DELETE FROM presets WHERE id = ?', [id])
+  })
 }
 
 // ---------------- decks ----------------
@@ -238,10 +240,15 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
     byParent.get(k)!.push(d)
   }
 
-  const presetCache = new Map<string, PresetConfig>()
-  const presetFor = (id: string) => {
-    if (!presetCache.has(id)) presetCache.set(id, resolvePreset(col, id).config)
-    return presetCache.get(id)!
+  // Resolve presets in memory (one query) instead of walking the tree with queries per deck.
+  const presets = new Map(listPresets(col).map((p) => [p.id, p.config]))
+  const byId = new Map(decks.map((d) => [d.id, d]))
+  const presetFor = (id: string): PresetConfig => {
+    for (let cur = byId.get(id); cur; cur = cur.parentId ? byId.get(cur.parentId) : undefined) {
+      const cfg = cur.presetId ? presets.get(cur.presetId) : undefined
+      if (cfg) return cfg
+    }
+    return presets.get(DEFAULT_PRESET_ID)!
   }
 
   const build = (d: Deck, path: string[], depth: number): [DeckNode, RawCounts] => {

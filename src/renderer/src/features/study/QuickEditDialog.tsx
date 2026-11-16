@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Note } from '@shared/types'
-import { Button, Dialog, Field, Textarea, toast } from '@renderer/components/ui'
+import { Button, Dialog, Field, Textarea, toast, toastError } from '@renderer/components/ui'
 
 export interface QuickEditDialogProps {
   open: boolean
@@ -32,7 +32,7 @@ export function QuickEditDialog({ open, note, onClose, onSaved }: QuickEditDialo
       toast('Card updated', { kind: 'success' })
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not save', { kind: 'error' })
+      toastError(e, 'Could not save')
     } finally {
       setSaving(false)
     }

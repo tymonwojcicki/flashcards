@@ -10,6 +10,9 @@ export const DEFAULT_PRESET_ID = 'default'
 
 export const newId = (): string => globalThis.crypto.randomUUID()
 
+/** "?,?,?" for an IN (...) list of n values. */
+export const placeholders = (n: number): string => Array(n).fill('?').join(',')
+
 type Row = Record<string, SqlValue>
 
 export class BaseCollection {
@@ -118,15 +121,16 @@ export class BaseCollection {
     const sp = `sp${this.txDepth}`
     this.db.run(this.txDepth === 0 ? 'BEGIN' : `SAVEPOINT ${sp}`)
     this.txDepth++
+    const outer = this.txDepth === 1
     try {
       const r = fn()
-      this.txDepth--
-      this.db.run(this.txDepth === 0 ? 'COMMIT' : `RELEASE ${sp}`)
+      this.db.run(outer ? 'COMMIT' : `RELEASE ${sp}`)
       return r
     } catch (e) {
-      this.txDepth--
-      this.db.run(this.txDepth === 0 ? 'ROLLBACK' : `ROLLBACK TO ${sp}; RELEASE ${sp}`)
+      this.db.run(outer ? 'ROLLBACK' : `ROLLBACK TO ${sp}; RELEASE ${sp}`)
       throw e
+    } finally {
+      this.txDepth--
     }
   }
 
@@ -158,7 +162,21 @@ export class BaseCollection {
     this.dirty = true
     this.onChange?.()
     if (this.saveTimer) clearTimeout(this.saveTimer)
-    this.saveTimer = setTimeout(() => void this.saveNow(), this.saveDelay)
+    this.saveTimer = setTimeout(() => this.autoSave(), this.saveDelay)
+  }
+
+  /** Timer-driven save: a failed write (cloud folder locked, disk full) is retried, never thrown into the event loop. */
+  private autoSave(): void {
+    const retry = (e: unknown): void => {
+      console.error('[collection] save failed, will retry', e)
+      this.dirty = true
+      if (!this.saveTimer) this.saveTimer = setTimeout(() => this.autoSave(), 5000)
+    }
+    try {
+      void Promise.resolve(this.saveNow()).catch(retry)
+    } catch (e) {
+      retry(e)
+    }
   }
 
   /** Subclasses persist `exportBytes()`. */
@@ -171,7 +189,12 @@ export class BaseCollection {
     }
     if (this.readOnly || !this.dirty) return
     this.dirty = false
-    return this.persist(this.exportBytes())
+    try {
+      return this.persist(this.exportBytes())
+    } catch (e) {
+      this.dirty = true // not written: keep it pending
+      throw e
+    }
   }
 
   get hasUnsavedChanges(): boolean {

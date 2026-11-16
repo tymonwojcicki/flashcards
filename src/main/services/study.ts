@@ -1,6 +1,6 @@
 import type { SqlValue } from 'sql.js'
 import type { BaseCollection as Collection } from '../db/core'
-import { newId } from '../db/core'
+import { newId, placeholders as ph } from '../db/core'
 import {
   CardState,
   Rating,
@@ -17,8 +17,6 @@ import { deckPath, getCollectionSettings, resolvePreset, subtreeIds } from './de
 import { toCard, toNote, type CardRow } from './notes'
 import { preview, retrievability, reviewCard, reviveCard, serializeCard } from './scheduler'
 import { dayKey, dayStart, nextDayStart } from './time'
-
-const ph = (n: number) => Array(n).fill('?').join(',')
 
 type JoinedRow = CardRow & {
   deck_id: string

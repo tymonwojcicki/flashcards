@@ -4,7 +4,7 @@ import { Check, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
 import { RichHtml } from '@renderer/lib/html'
 import type { Editor } from '@tiptap/react'
 import type { DeckNode, Id } from '@shared/types'
-import { Button, IconButton, Kbd, Switch, toast } from '@renderer/components/ui'
+import { Button, IconButton, Kbd, Switch, toast, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { playSound } from '@renderer/lib/sound'
 import { useShortcut, useEffectiveKeys } from '@renderer/lib/shortcuts'
@@ -112,7 +112,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
         setTags(note.tags)
         setTimeout(() => frontEditor.current?.commands.focus('end'), 50)
       },
-      (e) => toast(e instanceof Error ? e.message : 'Could not load card', { kind: 'error' })
+      (e) => toastError(e, 'Could not load card')
     )
     return () => {
       cancelled = true
@@ -189,7 +189,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
       scheduleRefresh()
       loadTags()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not save card', { kind: 'error' })
+      toastError(e, 'Could not save card')
     } finally {
       setBusy(false)
     }
@@ -217,7 +217,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
       if (editing?.noteId === entry.noteId) leaveEdit()
       scheduleRefresh()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not delete card', { kind: 'error' })
+      toastError(e, 'Could not delete card')
     }
   }
 

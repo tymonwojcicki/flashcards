@@ -67,7 +67,7 @@ export function TagsDialog({
         onOpenChange(o)
       }}
       title="Add tags"
-      description={`Add tags to ${count} selected ${count === 1 ? 'card' : 'cards'}. Type a tag and press Space or Enter.`}
+      description={`Add tags to ${count} selected ${count === 1 ? 'card' : 'cards'}.`}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

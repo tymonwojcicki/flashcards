@@ -2,11 +2,10 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { isForeignLock } from './backupCore'
 
 export const LOCK_FILE = 'app.lock'
 const HEARTBEAT_MS = 60_000
-/** A lock older than this is considered stale (device crashed or went offline). */
-export const STALE_MS = 3 * 60_000
 
 interface LockData {
   device: string
@@ -29,9 +28,8 @@ export function readLock(dir: string): LockData | null {
 export function foreignLock(dir: string, now = Date.now()): LockData | null {
   const l = readLock(dir)
   if (!l) return null
-  if (l.device === device()) return null // same PC (e.g. after a crash) — safe to take over
-  if (now - l.heartbeat > STALE_MS) return null
-  return l
+  // Same PC (e.g. after a crash) or a stale lock: safe to take over.
+  return isForeignLock(l, device(), now) ? l : null
 }
 
 export class Lock {

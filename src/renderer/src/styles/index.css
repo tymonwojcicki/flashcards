@@ -210,6 +210,31 @@ html {
   font-size: calc(16px * var(--font-scale, 1));
   background: var(--bg);
 }
+/* Sliders: thumb and fill glide to each value on a light spring (small overshoot, then settle);
+   grabbing swells the thumb slightly with a soft halo and it springs back on release. Kept short
+   so the thumb still tracks the pointer directly. */
+.neu-slider {
+  --slider-spring: cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+.neu-slider > span:not(:first-child) {
+  /* Radix's thumb wrapper, positioned with `left` */
+  transition: left 140ms var(--slider-spring);
+}
+.neu-slider .slider-range {
+  transition: left 140ms var(--slider-spring), right 140ms var(--slider-spring);
+}
+.neu-slider .slider-thumb {
+  transition: scale 260ms var(--slider-spring), box-shadow 200ms var(--ease-out);
+}
+.neu-slider:hover .slider-thumb {
+  scale: 1.06;
+}
+.neu-slider:active .slider-thumb,
+.neu-slider .slider-thumb:active {
+  scale: 1.16;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent), 0 3px 8px rgb(0 0 0 / 0.18);
+}
+
 /* Theme / accent change: the new colours sweep in diagonally behind a soft gradient edge. */
 html.theme-sweep::view-transition-old(root),
 html.theme-sweep::view-transition-new(root) {

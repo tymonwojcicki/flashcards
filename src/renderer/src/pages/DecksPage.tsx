@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { hasLaunchFile, onLaunchFile, takeLaunchFile } from '@renderer/lib/launchFile'
 import { FileUp, Layers, Plus, Upload } from 'lucide-react'
 import type { DeckNode, Id } from '@shared/types'
-import { Button, EmptyState, Panel, toast } from '@renderer/components/ui'
+import { Button, EmptyState, Panel, toast, toastError } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
-import { useShortcut } from '@renderer/lib/shortcuts'
+import { useEffectiveKeys, useShortcut } from '@renderer/lib/shortcuts'
 import { plural } from '@renderer/lib/format'
 import { DeckTree } from '@renderer/features/decks/DeckTree'
 import { ExportDeckDialog, MoveDeckDialog, NewDeckDialog, ProgressChoiceDialog } from '@renderer/features/decks/DeckDialogs'
@@ -14,6 +14,7 @@ import { createDeckPath } from '@renderer/features/decks/actions'
 export default function DecksPage(): React.JSX.Element {
   const tree = useApp((s) => s.deckTree)
   const navigate = useApp((s) => s.navigate)
+  const newKeys = useEffectiveKeys('deck.new')
   const refreshDecks = useApp((s) => s.refreshDecks)
 
   const [newOpen, setNewOpen] = useState(false)
@@ -47,7 +48,7 @@ export default function DecksPage(): React.JSX.Element {
   }, [])
 
   const fail = (e: unknown, fallback: string): void => {
-    toast(e instanceof Error ? e.message : fallback, { kind: 'error' })
+    toastError(e, fallback)
   }
 
   const create = async (name: string, parentId: Id | null): Promise<void> => {
@@ -113,7 +114,7 @@ export default function DecksPage(): React.JSX.Element {
           <Button icon={<FileUp size={16} />} onClick={() => setImportAsk(true)}>
             Import deck file
           </Button>
-          <Button icon={<Plus size={16} />} hotkey="N" onClick={() => openNew(null)}>
+          <Button icon={<Plus size={16} />} hotkey={newKeys} onClick={() => openNew(null)}>
             New deck
           </Button>
         </div>
