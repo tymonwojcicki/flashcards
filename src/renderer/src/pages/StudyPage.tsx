@@ -1,6 +1,6 @@
 // Prop contract: { deckId: string; mode: StudyMode }. Rendered full-screen (sidebar hidden).
 // Leave with useApp.getState().navigate({ name: 'decks' }).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
   ArrowLeft,
@@ -27,27 +27,9 @@ import { useApp } from '@renderer/store/app'
 import { playSound } from '@renderer/lib/sound'
 import type { SoundName } from '@renderer/lib/sound'
 import { QuickEditDialog } from '@renderer/features/study/QuickEditDialog'
-import {
-  applyNoteEdit,
-  countdownLabel,
-  makeQueue,
-  pickNext,
-  progressOf,
-  sessionProgress,
-  pushFront,
-  remainingCounts,
-  removeById,
-  requeueAfter,
-  requeueByDue,
-  studyAhead
-} from '@renderer/features/study/queue'
-import type { QueueItem } from '@renderer/features/study/queue'
-
-interface HistoryEntry {
-  sc: QueueItem['sc']
-  rating: Rating
-  durationMs: number
-}
+import { countdownLabel } from '@renderer/features/study/queue'
+import { StudySessionRunner } from '@renderer/features/study/session'
+import type { SessionBackend, SessionSnapshot } from '@renderer/features/study/session'
 
 const MODE_LABEL: Record<StudyMode, string> = {
   mixed: 'Study',
@@ -127,55 +109,39 @@ function formatDuration(ms: number): string {
   return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
+const noSubscribe = (): (() => void) => () => undefined
+const noSnapshot = (): null => null
+
+function useSnapshot(runner: StudySessionRunner | null): SessionSnapshot | null {
+  return useSyncExternalStore(runner?.subscribe ?? noSubscribe, runner?.getSnapshot ?? noSnapshot)
+}
+
+const backend: SessionBackend = {
+  answer: (cardId, rating, durationMs) => window.api.answer(cardId, rating, durationMs),
+  undo: () => window.api.undo()
+}
+
 export default function StudyPage({ deckId, mode }: { deckId: string; mode: StudyMode }): React.JSX.Element {
   const navigate = useApp((s) => s.navigate)
   const deckTree = useApp((s) => s.deckTree)
 
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading')
-  const [affects, setAffects] = useState(true)
-  const [queue, setQueue] = useState<QueueItem[]>([])
-  const queueRef = useRef<QueueItem[]>([])
-  const [total, setTotal] = useState(0)
-  const [currentId, setCurrentId] = useState<string | null>(null)
-  const [shownKey, setShownKey] = useState(0)
-  const [revealed, setRevealed] = useState(false)
-  const [stats, setStats] = useState({ answered: 0, again: 0, timeMs: 0 })
+  const [runner, setRunner] = useState<StudySessionRunner | null>(null)
+  const snap = useSnapshot(runner)
   const [pressed, setPressed] = useState<Rating | null>(null)
   const [intervals, setIntervals] = useState<IntervalPreview | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const history = useRef<HistoryEntry[]>([])
-  const shownAt = useRef(Date.now())
-  const busy = useRef(false)
-  // Learn-ahead limit (Settings > Scheduling), sent with the session: learning cards due within
-  // this window are shown right away when nothing else is ready.
-  const learnAheadMs = useRef(0)
-
-  /** Replace the queue and choose which card to show next. */
-  const commit = useCallback((q: QueueItem[]) => {
-    queueRef.current = q
-    setQueue(q)
-    const pick = pickNext(q, Date.now(), learnAheadMs.current)
-    setCurrentId(pick.kind === 'card' ? q[pick.index].sc.card.id : null)
-    setRevealed(false)
-    setIntervals(null)
-    shownAt.current = Date.now()
-    setShownKey((k) => k + 1)
-  }, [])
 
   // ---- load ----
   useEffect(() => {
     let cancelled = false
     setPhase('loading')
-    history.current = []
-    setStats({ answered: 0, again: 0, timeMs: 0 })
+    setRunner(null)
     window.api
       .getSession(deckId, mode)
       .then((s: StudySession) => {
         if (cancelled) return
-        setAffects(s.affectsSchedule)
-        learnAheadMs.current = s.learnAheadMs
-        setTotal(s.cards.length)
-        commit(makeQueue(s.cards))
+        setRunner(new StudySessionRunner(s, backend))
         setPhase('ready')
         if (s.cards.length > 0) playSound('start')
       })
@@ -187,14 +153,19 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
     return () => {
       cancelled = true
     }
-  }, [deckId, mode, commit])
+  }, [deckId, mode])
 
-  const curItem = useMemo(() => queue.find((q) => q.sc.card.id === currentId) ?? null, [queue, currentId])
-  const cur = curItem?.sc ?? null
+  const affects = snap?.affectsSchedule ?? true
+  const cur = snap?.current ?? null
   const curCardId = cur?.card.id ?? null
+  const shownKey = snap?.shownKey ?? 0
+  const revealed = snap?.revealed ?? false
+  const total = snap?.total ?? 0
+  const queueLength = snap?.queue.length ?? 0
 
   // ---- interval previews ----
   useEffect(() => {
+    setIntervals(null)
     if (!curCardId || !affects) return
     let cancelled = false
     window.api
@@ -209,112 +180,57 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   }, [curCardId, affects, shownKey])
 
   // ---- waiting for a learning step ----
-  const waiting = phase === 'ready' && currentId === null && queue.length > 0
+  const waiting = phase === 'ready' && !cur && queueLength > 0
   const now = useNow(waiting)
-  const waitPick = waiting ? pickNext(queue, now, learnAheadMs.current) : null
   useEffect(() => {
-    if (!waitPick) return
-    if (waitPick.kind === 'card' || (waitPick.kind === 'wait' && now >= waitPick.until)) commit(queueRef.current)
-  }, [waitPick, now, commit])
+    if (waiting) runner?.next()
+  }, [waiting, now, runner])
 
   // ---- actions ----
   const exit = (): void => navigate({ name: 'decks' })
 
-  // Session finished (queue emptied after at least one answer).
-  const finished = phase === 'ready' && total > 0 && queue.length === 0 && stats.answered > 0
+  const finished = snap?.finished ?? false
   useEffect(() => {
     if (finished) playSound('complete')
   }, [finished])
 
   const reveal = (): void => {
-    if (cur && !revealed) {
-      playSound('reveal')
-      setRevealed(true)
-    }
+    if (runner?.reveal()) playSound('reveal')
   }
 
   const answer = async (rating: Rating): Promise<void> => {
-    if (!cur || !revealed || busy.current) return
-    if (!affects && rating !== Rating.Again && rating !== Rating.Good) return
-    busy.current = true
+    if (!runner?.canAnswer(rating)) return
     playSound(RATING_SOUND[rating])
     setPressed(rating)
     setTimeout(() => setPressed(null), 180)
-    const durationMs = Math.min(Date.now() - shownAt.current, 5 * 60_000)
     try {
-      let q: QueueItem[]
-      if (affects) {
-        const res = await window.api.answer(cur.card.id, rating, durationMs)
-        q = res.requeue ? requeueByDue(queueRef.current, cur, res.card) : removeById(queueRef.current, cur.card.id)
-      } else if (rating === Rating.Again) {
-        q = requeueAfter(queueRef.current, cur, 3 + Math.floor(Math.random() * 3))
-      } else {
-        q = removeById(queueRef.current, cur.card.id)
-      }
-      history.current.push({ sc: cur, rating, durationMs })
-      setStats((s) => ({
-        answered: s.answered + 1,
-        again: s.again + (rating === Rating.Again ? 1 : 0),
-        timeMs: s.timeMs + durationMs
-      }))
-      commit(q)
+      await runner.answer(rating)
     } catch (e) {
       toastError(e, 'Could not save answer')
-    } finally {
-      busy.current = false
     }
   }
 
   const undo = async (): Promise<void> => {
-    if (busy.current) return
-    if (history.current.length === 0) {
-      toast('Nothing to undo')
-      return
-    }
-    busy.current = true
+    if (!runner) return
     try {
-      let idx = history.current.length - 1
-      if (affects) {
-        const restored = await window.api.undo()
-        if (!restored) {
-          toast('Nothing to undo')
-          return
-        }
-        let found = -1
-        for (let i = history.current.length - 1; i >= 0; i--) {
-          if (history.current[i].sc.card.id === restored) {
-            found = i
-            break
-          }
-        }
-        if (found < 0) {
-          toast('Undone (reopen the session to see the card again)')
-          return
-        }
-        idx = found
+      const r = await runner.undo()
+      if (r.kind === 'nothing') toast('Nothing to undo')
+      else if (r.kind === 'elsewhere') toast('Undone (reopen the session to see the card again)')
+      else if (r.kind === 'undone') {
+        playSound('undo')
+        toast('Undone')
       }
-      const [h] = history.current.splice(idx, 1)
-      setStats((s) => ({
-        answered: Math.max(0, s.answered - 1),
-        again: Math.max(0, s.again - (h.rating === Rating.Again ? 1 : 0)),
-        timeMs: Math.max(0, s.timeMs - h.durationMs)
-      }))
-      commit(pushFront(queueRef.current, h.sc))
-      playSound('undo')
-      toast('Undone')
     } catch (e) {
       toastError(e, 'Could not undo')
-    } finally {
-      busy.current = false
     }
   }
 
   const bury = async (): Promise<void> => {
-    if (!cur || busy.current) return
+    if (!runner || !cur) return
     const id = cur.card.id
     try {
       await window.api.buryCard(id)
-      commit(removeById(queueRef.current, id))
+      runner.remove(id)
       toast('Card buried until tomorrow')
     } catch (e) {
       toastError(e, 'Could not bury card')
@@ -322,18 +238,18 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   }
 
   const suspend = async (): Promise<void> => {
-    if (!cur || busy.current) return
+    if (!runner || !cur) return
     const sc = cur
     try {
       await window.api.setSuspended([sc.card.id], true)
-      commit(removeById(queueRef.current, sc.card.id))
+      runner.remove(sc.card.id)
       toast('Card suspended', {
         action: {
           label: 'Undo',
           onClick: () => {
             void window.api
               .setSuspended([sc.card.id], false)
-              .then(() => commit(pushFront(queueRef.current, sc)))
+              .then(() => runner.restore(sc))
               .catch(() => toast('Could not unsuspend', { kind: 'error' }))
           }
         }
@@ -383,12 +299,10 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   // ---- derived ----
   const deckNode = findDeck(deckTree, deckId)
   const pathLabel = deckNode ? deckPathLabel(deckNode.path) : (cur ? deckPathLabel(cur.deckPath) : '')
-  const remaining = remainingCounts(queue)
-  const { fraction: progress, done: doneCount } = sessionProgress(
-    total,
-    queue,
-    new Set(history.current.map((h) => h.sc.card.id))
-  )
+  const remaining = snap?.remaining ?? { new: 0, learning: 0, review: 0 }
+  const progress = snap?.progress ?? 0
+  const doneCount = snap?.doneCount ?? 0
+  const stats = snap?.stats ?? { answered: 0, again: 0, timeMs: 0 }
 
   const exitKeys = useEffectiveKeys('study.exit')
   const undoKeys = useEffectiveKeys('study.undo')
@@ -428,7 +342,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
           hotkey={undoKeys}
           icon={<Undo2 size={18} />}
           onClick={() => void undo()}
-          disabled={phase !== 'ready' || history.current.length === 0}
+          disabled={phase !== 'ready' || !snap?.canUndo}
           tooltipSide="bottom"
         />
         <DropdownMenu
@@ -473,11 +387,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
         open={editOpen}
         note={cur?.note ?? null}
         onClose={() => setEditOpen(false)}
-        onSaved={(n) => {
-          const q = applyNoteEdit(queueRef.current, n.id, n.front, n.back)
-          queueRef.current = q
-          setQueue(q)
-        }}
+        onSaved={(n) => runner?.editNote(n.id, n.front, n.back)}
       />
     </div>
   )
@@ -497,7 +407,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   if (total === 0) {
     return shell(<EmptySession deckId={deckId} mode={mode} />)
   }
-  if (queue.length === 0) {
+  if (queueLength === 0) {
     const againRate = stats.answered > 0 ? Math.round((stats.again / stats.answered) * 100) : 0
     return shell(
       <div className="anim-slide-up flex flex-col items-center gap-6 text-center">
@@ -534,7 +444,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
     )
   }
   if (!cur) {
-    const until = waitPick && waitPick.kind === 'wait' ? waitPick.until : now
+    const until = snap?.waitUntil ?? now
     return shell(
       <div className="anim-fade-in flex flex-col items-center gap-5 text-center">
         <div className="neu-raised flex h-20 w-20 items-center justify-center rounded-full text-accent">
@@ -544,10 +454,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
           <h2 className="text-xl font-semibold text-text">Next card in {countdownLabel(until - now)}</h2>
           <p className="mt-1 text-sm text-muted">No other cards are due.</p>
         </div>
-        <Button
-          size="lg"
-          onClick={() => waitPick && waitPick.kind === 'wait' && commit(studyAhead(queueRef.current, waitPick.index))}
-        >
+        <Button size="lg" onClick={() => runner?.studyAhead()}>
           Study ahead
         </Button>
       </div>
