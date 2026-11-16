@@ -64,14 +64,7 @@ export interface SelectProps {
 
 export function Select({ value, onValueChange, options, placeholder, id, disabled, className, ...rest }: SelectProps): React.JSX.Element {
   return (
-    <RSelect.Root
-      value={value}
-      onValueChange={(v) => {
-        if (v !== value) playSound('select')
-        onValueChange(v)
-      }}
-      disabled={disabled}
-    >
+    <RSelect.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <RSelect.Trigger
         id={id}
         aria-label={rest['aria-label']}
@@ -126,10 +119,7 @@ export function Switch({ checked, onCheckedChange, id, disabled, className, ...r
     <RSwitch.Root
       id={id}
       checked={checked}
-      onCheckedChange={(c) => {
-        playSound('toggle')
-        onCheckedChange(c)
-      }}
+      onCheckedChange={onCheckedChange}
       disabled={disabled}
       aria-label={rest['aria-label']}
       className={clsx(

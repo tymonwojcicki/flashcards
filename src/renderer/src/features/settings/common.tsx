@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Input } from '@renderer/components/ui'
-import { playSound } from '@renderer/lib/sound'
 
 export interface SegmentedOption<T extends string> {
   value: T
@@ -33,10 +32,7 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
-            onClick={() => {
-              if (!active) playSound('select')
-              onChange(o.value)
-            }}
+            onClick={() => onChange(o.value)}
             className={clsx(
               'inline-flex h-8 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition-all duration-150',
               active ? 'neu-raised-sm text-accent' : 'text-muted hover:text-text'

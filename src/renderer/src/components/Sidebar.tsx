@@ -19,7 +19,6 @@ import { dueTotal } from '@renderer/lib/decks'
 import { useEffectiveKeys } from '@renderer/lib/shortcuts'
 import type { ShortcutId } from '@renderer/lib/shortcuts'
 import { IconButton, Kbd, Switch, Tooltip } from '@renderer/components/ui'
-import { playSound } from '@renderer/lib/sound'
 
 interface NavItem {
   route: Route
@@ -49,10 +48,8 @@ function NavButton({ item, collapsed, badge }: { item: NavItem; collapsed: boole
   const active = route.name === item.route.name
   const btn = (
     <button
-      onClick={() => {
-        if (!active) playSound('nav')
-        navigate(item.route)
-      }}
+      data-sound={active ? 'none' : 'nav'}
+      onClick={() => navigate(item.route)}
       aria-current={active ? 'page' : undefined}
       aria-label={collapsed ? item.label : undefined}
       className={clsx(

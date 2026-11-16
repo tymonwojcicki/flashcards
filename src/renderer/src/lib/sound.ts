@@ -357,6 +357,70 @@ export function soundLength(name: SoundName): number {
   return Math.max(...r.events.map((e) => e.at + (e.kind === 'mallet' ? e.decay : 0.03))) + (r.room > 0 ? 0.6 : 0)
 }
 
+// ---- Global UI sounds by control type ----
+// One listener plays the sound for any control by its role, so components never call playSound
+// for plain interactions. Override per element with data-sound="<name>" or data-sound="none".
+//   switch                       -> toggle
+//   radio / tab / option         -> select (only when choosing something not already selected)
+const SWITCH = '[role="switch"]'
+const CHOICE = '[role="radio"], [role="tab"], [role="option"], [role="menuitemradio"]'
+const CONTROL = `[data-sound], ${SWITCH}, ${CHOICE}`
+
+function uiSoundFor(target: EventTarget | null): SoundName | null {
+  const el = (target as Element | null)?.closest?.(CONTROL)
+  if (!el) return null
+  if (el.matches(':disabled, [aria-disabled="true"], [data-disabled]')) return null
+  const own = el.getAttribute('data-sound')
+  if (own) return own === 'none' ? null : (own as SoundName)
+  if (el.matches(SWITCH)) return 'toggle'
+  const already =
+    el.getAttribute('aria-checked') === 'true' ||
+    el.getAttribute('aria-selected') === 'true' ||
+    el.getAttribute('data-state') === 'checked' ||
+    el.getAttribute('data-state') === 'active'
+  return already ? null : 'select'
+}
+
+let installedUi = false
+/** Start playing control sounds app-wide (idempotent). */
+export function installUiSounds(): void {
+  if (installedUi) return
+  installedUi = true
+  // Clicks (also fired by Enter/Space on buttons). Dropdown options select on pointer-up and may
+  // unmount before a click, so they're handled on pointerup / keydown instead.
+  document.addEventListener(
+    'click',
+    (e) => {
+      const el = (e.target as Element | null)?.closest?.(CONTROL)
+      if (el && el.getAttribute('role') === 'option') return
+      const s = uiSoundFor(e.target)
+      if (s) playSound(s)
+    },
+    { capture: true }
+  )
+  document.addEventListener(
+    'pointerup',
+    (e) => {
+      const el = (e.target as Element | null)?.closest?.('[role="option"]')
+      if (!el || e.button !== 0) return
+      const s = uiSoundFor(el)
+      if (s) playSound(s)
+    },
+    { capture: true }
+  )
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      const el = (e.target as Element | null)?.closest?.('[role="option"]')
+      if (!el) return
+      const s = uiSoundFor(el)
+      if (s) playSound(s)
+    },
+    { capture: true }
+  )
+}
+
 let ctx: AudioContext | null = null
 
 function getContext(): AudioContext | null {
@@ -376,6 +440,7 @@ function getContext(): AudioContext | null {
 export function playSound(name: SoundName): void {
   try {
     if (typeof document === 'undefined' || document.hidden) return
+    ;(window as unknown as { __soundLog?: string[] }).__soundLog?.push(name) // test hook (inert unless set)
     const { soundEffects, soundVolume } = useApp.getState().prefs
     if (!soundEffects || soundVolume <= 0) return
     const c = getContext()
