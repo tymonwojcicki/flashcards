@@ -315,7 +315,7 @@ export default function AddPage({ deckId: propDeckId, editNoteId }: { deckId?: s
         <section className="flex min-w-0 flex-col gap-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-text">This session</h2>
-            <span className="text-xs text-muted">{session.length === 0 ? 'Math: write LaTeX between $ signs.' : plural(session.length, 'card')}</span>
+            {session.length > 0 && <span className="text-xs text-muted">{plural(session.length, 'card')}</span>}
           </div>
           <div className="neu-inset overflow-hidden rounded-[20px] bg-bg">
             <div className={clsx('grid gap-3 border-b border-text/10 px-4 py-2.5 text-[0.68rem] font-semibold tracking-wider text-muted uppercase', SESSION_COLS)}>
