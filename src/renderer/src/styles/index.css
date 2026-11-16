@@ -210,6 +210,10 @@ html {
   font-size: calc(16px * var(--font-scale, 1));
   background: var(--bg);
 }
+/* Smooth text-size changes from Settings (everything sized in rem follows). */
+html.font-anim {
+  transition: font-size 240ms var(--ease-out);
+}
 html,
 body,
 #root {

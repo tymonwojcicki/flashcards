@@ -42,6 +42,10 @@ function applyPrefs(prefs: Prefs): void {
   root.dataset.theme = resolveTheme(prefs.theme)
   root.dataset.accent = ['ember', 'aqua', 'iris'].includes(prefs.accent) ? prefs.accent : 'ember'
   root.style.setProperty('--font-scale', String(prefs.fontScale || 1))
+  // Animate later font-size changes, but not the first apply at startup (no zoom on launch).
+  if (!root.classList.contains('font-anim')) {
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('font-anim')))
+  }
 }
 
 let initPromise: Promise<void> | null = null
