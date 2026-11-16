@@ -86,7 +86,7 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
     return { mode, deckId, affectsSchedule: false, cards: wrap(shuffle(scored.slice(0, 50).map(([, r]) => r))) }
   }
 
-  const tq = loadTodaysQueue(col, deckId, now, mode === 'learn' ? (c) => c.state === CardState.New : undefined)
+  const tq = loadTodaysQueue(col, deckId, now)
   const picked =
     mode === 'learn' ? tq.new : mode === 'review' ? [...tq.learning, ...tq.review] : [...tq.learning, ...interleave(tq.review, tq.new)]
   const rows = new Map(

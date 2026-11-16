@@ -112,6 +112,56 @@ describe('decks', () => {
       expect(await sessionSize(parent)).toBe(2)
       expect(await sessionSize(child)).toBe(2)
     })
+
+    describe('every study mode serves its menu count', () => {
+      // n1: both reviews due. n2: fwd review due, rev new. n3: both new. n4: fwd learning, rev new.
+      const fixture = () => {
+        const [d] = decks.ensureDeckPath(col, 'A')
+        for (let i = 0; i < 4; i++) reverseNote(d)
+        const [n1, n2, , n4] = col.all<{ id: string }>('SELECT id FROM notes ORDER BY rowid')
+        col.run('UPDATE cards SET state = 2, due = 0 WHERE note_id = ?', [n1.id])
+        col.run("UPDATE cards SET state = 2, due = 0 WHERE note_id = ? AND direction = 'fwd'", [n2.id])
+        col.run("UPDATE cards SET state = 1, due = 0 WHERE note_id = ? AND direction = 'fwd'", [n4.id])
+        return d
+      }
+      const menu = () => {
+        const c = decks.getDeckTree(col)[0].counts
+        return { mixed: c.learning + c.review + c.new, review: c.learning + c.review, learn: c.new }
+      }
+      const served = async (d: string) => ({
+        mixed: (await study.getSession(col, d, 'mixed')).cards.length,
+        review: (await study.getSession(col, d, 'review')).cards.length,
+        learn: (await study.getSession(col, d, 'learn')).cards.length
+      })
+
+      it('bury on', async () => {
+        const d = fixture()
+        expect(menu()).toEqual({ mixed: 4, review: 3, learn: 1 })
+        expect(await served(d)).toEqual(menu())
+      })
+
+      it('bury off', async () => {
+        const d = fixture()
+        decks.setDeckPreset(col, d, noBury().id)
+        expect(menu()).toEqual({ mixed: 8, review: 4, learn: 4 })
+        expect(await served(d)).toEqual(menu())
+      })
+
+      it('bury on: Learn new skips a new card whose sibling is a due review', async () => {
+        const [d] = decks.ensureDeckPath(col, 'A')
+        reverseNote(d)
+        col.run("UPDATE cards SET state = 2, due = 0 WHERE direction = 'fwd'")
+        expect((await study.getSession(col, d, 'learn')).cards).toHaveLength(0)
+      })
+
+      it('bury off: Learn new serves both cards of a reverse note', async () => {
+        const [d] = decks.ensureDeckPath(col, 'A')
+        decks.setDeckPreset(col, d, noBury().id)
+        reverseNote(d)
+        const cards = (await study.getSession(col, d, 'learn')).cards
+        expect(cards.map((c) => c.card.direction).sort()).toEqual(['fwd', 'rev'])
+      })
+    })
   })
 
   it("a parent deck's own limit covers its whole subtree", async () => {

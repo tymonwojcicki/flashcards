@@ -96,20 +96,10 @@ export function doneTodayByDeck(col: Collection, start: number, deckIds?: Id[]):
   return new Map(rows.map((r) => [r.deck_id, { new: r.nd, review: r.rd }]))
 }
 
-/**
- * `only` narrows the candidates before selection.
- * shortcut: Learn new passes new cards only, so it ignores siblings due as reviews; #11 removes this.
- */
-export function loadTodaysQueue(
-  col: Collection,
-  deckId: Id,
-  now: number,
-  only?: (c: Candidate) => boolean
-): TodaysQueue<Candidate> {
+export function loadTodaysQueue(col: Collection, deckId: Id, now: number): TodaysQueue<Candidate> {
   const ids = subtreeIds(col, deckId)
   const { dayStartHour } = getCollectionSettings(col)
-  let cards = col.all<Candidate>(`${SELECT_CANDIDATES} WHERE n.deck_id IN (${ph(ids.length)})`, ids)
-  if (only) cards = cards.filter(only)
+  const cards = col.all<Candidate>(`${SELECT_CANDIDATES} WHERE n.deck_id IN (${ph(ids.length)})`, ids)
   const done = { new: 0, review: 0 }
   for (const d of doneTodayByDeck(col, dayStart(now, dayStartHour), ids).values()) {
     done.new += d.new
