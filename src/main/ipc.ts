@@ -7,8 +7,11 @@ import type { Api, IpcResult } from '../shared/api'
 import * as decks from './services/decks'
 import * as notes from './services/notes'
 import * as study from './services/study'
+import { clearUndo } from './services/study'
 import * as io from './services/importExport'
 import { backup } from './services/backup'
+import * as trash from './services/trash'
+import { onOpen } from './services/startup'
 import { MEDIA_SCHEME, nodeMediaPort, resolveMedia, saveMediaBytes, saveMediaFile } from "./services/media"
 
 type Handlers = { [K in keyof Api]: (...args: Parameters<Api[K]>) => ReturnType<Api[K]> | Promise<ReturnType<Api[K]>> }
@@ -22,6 +25,9 @@ async function resolveCsvImage(baseDir: string, src: string): Promise<string | n
   if (!fs.existsSync(abs)) return null
   return saveMediaFile(c().dir, abs)
 }
+
+/** Backup file chosen by pickBackup, waiting for the user's confirmation. */
+let pendingBackup: Uint8Array | null = null
 
 const safeName = (s: string) => s.replace(/[<>:"/\\|?*]+/g, '_').slice(0, 80) || 'deck'
 
@@ -46,6 +52,37 @@ const handlers: Handlers = {
     c().saveNow()
     return backup(c().dir) ?? ''
   },
+  runAutoBackup: () => null,
+  getAutoBackup: () => ({ available: false, enabled: false, lastAt: null }),
+  setAutoBackup: () => {},
+  pickBackup: async () => {
+    const r = await dialog.showOpenDialog(win(), {
+      title: 'Restore from backup',
+      properties: ['openFile'],
+      filters: [{ name: 'Flashcards backup', extensions: ['db'] }]
+    })
+    if (r.canceled || !r.filePaths[0]) return null
+    const bytes = new Uint8Array(fs.readFileSync(r.filePaths[0]))
+    c().validateBytes(bytes)
+    pendingBackup = bytes
+    return path.basename(r.filePaths[0])
+  },
+  restoreBackup: () => {
+    if (!pendingBackup) throw new Error('No backup file chosen.')
+    c().saveNow()
+    backup(c().dir) // safety copy of the current data
+    c().restoreFrom(pendingBackup)
+    pendingBackup = null
+    c().saveNow()
+    clearUndo()
+    onOpen(c())
+  },
+
+  // trash
+  listTrash: () => trash.listTrash(c()),
+  restoreTrash: (id) => trash.restoreTrash(c(), id),
+  deleteTrashForever: (id) => trash.deleteTrashForever(c(), id),
+  emptyTrash: () => trash.emptyTrash(c()),
 
   // prefs & settings
   getPrefs: () => state.prefs.get(),

@@ -4,6 +4,7 @@ import { newId } from '../db/core'
 import { CardState, type BrowseQuery, type BrowseRow, type Card, type Id, type Note } from '../../shared/types'
 import { deckPath, getCollectionSettings, subtreeIds } from './decks'
 import { nextDayStart } from './time'
+import { trashNotes } from './trash'
 
 // Tags are stored space-delimited with surrounding spaces: " a b c " (enables LIKE '% a %').
 export const encodeTags = (tags: string[]): string => {
@@ -130,9 +131,9 @@ export function updateNote(
 
 const placeholders = (n: number) => Array(n).fill('?').join(',')
 
-export function deleteNotes(col: Collection, ids: Id[]): void {
-  if (!ids.length) return
-  col.run(`DELETE FROM notes WHERE id IN (${placeholders(ids.length)})`, ids)
+/** Moves the notes and their cards to the Trash. Returns the trash id (for Undo). */
+export function deleteNotes(col: Collection, ids: Id[]): string | null {
+  return trashNotes(col, ids)
 }
 
 export function moveNotes(col: Collection, ids: Id[], deckId: Id): void {

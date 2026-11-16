@@ -159,15 +159,27 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
   const remove = async (d: DeckNode): Promise<void> => {
     const ok = await confirm({
       title: `Delete "${d.name}"?`,
-      message: `This permanently deletes the deck${d.children.length ? ', its sub-decks,' : ''} and ${plural(d.counts.total, 'card')}. This cannot be undone.`,
+      message: `This moves the deck${d.children.length ? ', its sub-decks,' : ''} and ${plural(d.counts.total, 'card')} to Trash. You can restore them from Trash for 30 days.`,
       confirmLabel: 'Delete',
       danger: true
     })
     if (!ok) return
     try {
-      await window.api.deleteDeck(d.id)
+      const trashId = await window.api.deleteDeck(d.id)
       await refreshDecks()
-      toast(`Deleted "${d.name}"`, { kind: 'success' })
+      toast(`Deleted "${d.name}"`, {
+        kind: 'success',
+        action: trashId
+          ? {
+              label: 'Undo',
+              onClick: () =>
+                void window.api.restoreTrash(trashId).then(
+                  () => refreshDecks(),
+                  (e) => fail(e, 'Could not restore deck')
+                )
+            }
+          : undefined
+      })
     } catch (e) {
       fail(e, 'Could not delete deck')
     }

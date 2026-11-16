@@ -1,13 +1,51 @@
-import { useState } from 'react'
-import { AlertTriangle, Cloud, DatabaseBackup, FolderOpen, FolderSync } from 'lucide-react'
-import { Button, Panel, Well, toast } from '@renderer/components/ui'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Cloud, DatabaseBackup, FolderOpen, FolderSync, Upload } from 'lucide-react'
+import { Button, Panel, Switch, Well, confirm, toast } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { UsagePanel } from './UsagePanel'
+import { TrashPanel } from './TrashPanel'
+import { SettingRow } from './common'
+import type { AutoBackupState } from '@shared/dataSafety'
 
 export function DataTab(): React.JSX.Element {
   const startup = useApp((s) => s.startup)
   const [busy, setBusy] = useState(false)
   const noFolders = !('showDirectoryPicker' in window)
+  const [auto, setAuto] = useState<AutoBackupState | null>(null)
+  useEffect(() => {
+    window.api.getAutoBackup().then(setAuto, () => {})
+  }, [])
+
+  const setAutoEnabled = async (enabled: boolean): Promise<void> => {
+    setAuto((a) => (a ? { ...a, enabled } : a))
+    try {
+      await window.api.setAutoBackup(enabled)
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not save setting', { kind: 'error' })
+    }
+  }
+
+  const restore = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const name = await window.api.pickBackup()
+      if (!name) return
+      const ok = await confirm({
+        title: 'Restore from backup?',
+        message: `Replace all current data with ${name}? Your current data is backed up first.`,
+        confirmLabel: 'Restore',
+        danger: true
+      })
+      if (!ok) return
+      await window.api.restoreBackup()
+      await useApp.getState().refreshDecks()
+      toast('Backup restored', { kind: 'success' })
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not restore the backup', { kind: 'error' })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const change = async (): Promise<void> => {
     try {
@@ -66,16 +104,40 @@ export function DataTab(): React.JSX.Element {
 
       <Panel className="flex flex-col gap-4">
         <h3 className="text-base font-semibold">Backups</h3>
-        <p className="text-sm text-muted">
-          Automatic backups are saved in the <code className="rounded bg-bg px-1">backups</code> folder inside your data
-          folder.
-        </p>
-        <div>
+        {auto?.available ? (
+          <p className="text-sm text-muted">
+            Your data is stored in this browser only and is lost if you clear site data. Keep backup files somewhere
+            safe.
+          </p>
+        ) : (
+          <p className="text-sm text-muted">
+            Automatic backups are saved in the <code className="rounded bg-bg px-1">backups</code> folder inside your
+            data folder.
+          </p>
+        )}
+        {auto?.available && (
+          <SettingRow
+            title="Automatic backup downloads"
+            desc="Downloads a backup file to your Downloads folder when the last one is a week old."
+          >
+            <Switch
+              aria-label="Automatic backup downloads"
+              checked={auto.enabled}
+              onCheckedChange={(v) => void setAutoEnabled(v)}
+            />
+          </SettingRow>
+        )}
+        <div className="flex flex-wrap gap-3">
           <Button icon={<DatabaseBackup size={16} />} disabled={busy} onClick={() => void backup()}>
-            {busy ? 'Backing up…' : 'Back up now'}
+            {busy ? 'Working…' : 'Back up now'}
+          </Button>
+          <Button icon={<Upload size={16} />} disabled={busy} onClick={() => void restore()}>
+            Restore from backup…
           </Button>
         </div>
       </Panel>
+
+      <TrashPanel />
 
       <Panel className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Export</h3>

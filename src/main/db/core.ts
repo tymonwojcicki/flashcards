@@ -61,6 +61,33 @@ export class BaseCollection {
     this.dirty = false
   }
 
+  /** Throws unless `bytes` is a Flashcards collection (SQLite file with the required tables). */
+  validateBytes(bytes: Uint8Array): void {
+    const bad = new Error('This file is not a Flashcards backup.')
+    const header = 'SQLite format 3\u0000'
+    if (bytes.length < 100 || [...header].some((ch, i) => bytes[i] !== ch.charCodeAt(0))) throw bad
+    let probe: Database | null = null
+    try {
+      probe = new this.SQL.Database(bytes)
+      const names = new Set(
+        (probe.exec("SELECT name FROM sqlite_master WHERE type = 'table'")[0]?.values ?? []).map((r) => String(r[0]))
+      )
+      for (const t of ['meta', 'presets', 'decks', 'notes', 'cards', 'review_log']) if (!names.has(t)) throw bad
+    } catch {
+      throw bad
+    } finally {
+      probe?.close()
+    }
+  }
+
+  /** Replace everything with a validated backup and queue it for saving. */
+  restoreFrom(bytes: Uint8Array): void {
+    this.assertWritable()
+    this.validateBytes(bytes)
+    this.replaceBytes(bytes)
+    this.markDirty()
+  }
+
   // ---------- query helpers ----------
   all<T = Row>(sql: string, params: SqlValue[] = []): T[] {
     const stmt = this.db.prepare(sql)

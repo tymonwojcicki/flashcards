@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { useApp } from '@renderer/store/app'
 import { useShortcut } from '@renderer/lib/shortcuts'
-import { DialogHost, Toaster } from '@renderer/components/ui'
+import { DialogHost, Toaster, toast } from '@renderer/components/ui'
 import { Sidebar } from '@renderer/components/Sidebar'
 import { CommandPalette } from '@renderer/components/CommandPalette'
 import { ShortcutsOverlay } from '@renderer/components/ShortcutsOverlay'
@@ -66,6 +66,11 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     void init()
+      .then(() => window.api.runAutoBackup())
+      .then((file) => {
+        if (file) toast('Backup saved to your Downloads folder', { kind: 'info' })
+      })
+      .catch(() => {})
   }, [init])
 
   useShortcut('app.search', () => setPaletteOpen(!paletteOpen), { allowInInputs: true })

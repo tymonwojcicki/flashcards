@@ -68,4 +68,14 @@ CREATE TABLE IF NOT EXISTS review_log (
 );
 CREATE INDEX IF NOT EXISTS idx_log_card ON review_log(card_id);
 CREATE INDEX IF NOT EXISTS idx_log_ts ON review_log(ts);
+
+-- Snapshots of deleted decks / notes, kept for 30 days (see services/trash.ts).
+CREATE TABLE IF NOT EXISTS trash (
+  id         TEXT PRIMARY KEY,
+  kind       TEXT NOT NULL,
+  label      TEXT NOT NULL,
+  card_count INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER NOT NULL,
+  payload    TEXT NOT NULL
+);
 `

@@ -311,12 +311,27 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
     const ids = [...new Set(t.map((r) => r.noteId))]
     const ok = await confirm({
       title: `Delete ${plural(ids.length, 'note')}?`,
-      message: `This permanently deletes ${plural(ids.length, 'note')} including both the forward and reverse cards of each. This cannot be undone.`,
+      message: `This moves ${plural(ids.length, 'note')} to Trash, including both the forward and reverse cards of each. You can restore them from Trash for 30 days.`,
       confirmLabel: 'Delete',
       danger: true
     })
     if (!ok) return
-    await run(() => window.api.deleteNotes(ids), 'Deleted')
+    await deleteNotes(ids)
+  }
+
+  /** Moves notes to Trash and offers Undo. */
+  async function deleteNotes(ids: string[]): Promise<void> {
+    let trashId: string | null = null
+    await run(async () => {
+      trashId = await window.api.deleteNotes(ids)
+    })
+    if (trashId) {
+      const id: string = trashId
+      toast('Deleted', {
+        kind: 'success',
+        action: { label: 'Undo', onClick: () => void run(() => window.api.restoreTrash(id), 'Restored') }
+      })
+    }
   }
 
   async function resetSelected(): Promise<void> {
@@ -628,11 +643,11 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
                   onClick={async () => {
                     const ok = await confirm({
                       title: 'Delete this note?',
-                      message: 'Deleting a note deletes both its forward and reverse cards. This cannot be undone.',
+                      message: 'Deleting a note moves both its forward and reverse cards to Trash. You can restore them for 30 days.',
                       confirmLabel: 'Delete',
                       danger: true
                     })
-                    if (ok) void run(() => window.api.deleteNotes([focusedRow.noteId]), 'Deleted')
+                    if (ok) void deleteNotes([focusedRow.noteId])
                   }}
                 >
                   Delete

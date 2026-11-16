@@ -6,6 +6,8 @@ import * as decks from '../main/services/decks'
 import * as notes from '../main/services/notes'
 import * as study from '../main/services/study'
 import * as io from '../main/services/importExport'
+import * as trash from '../main/services/trash'
+import { autoBackupDue, getAutoBackup, onOpen, setAutoBackup } from '../main/services/startup'
 import { MEDIA_DIR, base64ToBytes, mediaNameFromUrl, saveMedia, type MediaPort } from '../main/services/mediaCore'
 import type { Api, MainEvent, RendererApi } from '../shared/api'
 import { API_METHODS } from '../shared/api'
@@ -185,6 +187,10 @@ export class WebBackend {
   private heartbeat: ReturnType<typeof setInterval> | null = null
   private listeners = new Set<(e: MainEvent) => void>()
   media = new MediaUrls(() => mediaPort(this.store))
+  /** Backup file chosen by pickBackup, waiting for the user's confirmation. */
+  private pendingBackup: Uint8Array | null = null
+  private changedSinceBackup = false
+  private backupTimer: ReturnType<typeof setInterval> | null = null
 
   async open(store: DataStore): Promise<void> {
     this.releaseLock()
@@ -198,7 +204,10 @@ export class WebBackend {
       this.col.markDirty()
       await this.col.flush()
     }
-    this.col.onChange = () => this.emit('collection-changed')
+    this.col.onChange = () => {
+      this.changedSinceBackup = true
+      this.emit('collection-changed')
+    }
     const foreign = await this.foreignLock()
     if (foreign) {
       this.col.readOnly = true
@@ -206,7 +215,17 @@ export class WebBackend {
     } else {
       await this.takeLock()
       await this.backup()
+      onOpen(this.col)
+      this.changedSinceBackup = false
     }
+    // Folder mode: keep rolling backups while the app stays open.
+    if (this.backupTimer) clearInterval(this.backupTimer)
+    this.backupTimer = setInterval(() => {
+      if (this.changedSinceBackup && !this.col.readOnly) {
+        this.changedSinceBackup = false
+        void this.backup()
+      }
+    }, 30 * 60_000)
   }
 
   // ----- lock -----
@@ -376,6 +395,43 @@ export class WebBackend {
         download(file, this.col.exportBytes(), 'application/octet-stream')
         return `Downloads/${file}`
       },
+
+      runAutoBackup: async () => {
+        if (this.store.kind === 'folder' || !autoBackupDue(c())) return null
+        await c().flush()
+        const file = `flashcards-backup-${new Date().toISOString().slice(0, 10)}.db`
+        download(file, c().exportBytes(), 'application/octet-stream')
+        return file
+      },
+      getAutoBackup: () => getAutoBackup(c(), this.store.kind !== 'folder'),
+      setAutoBackup: (on) => setAutoBackup(c(), on),
+      pickBackup: async () => {
+        const f = await pickFile('.db,application/octet-stream')
+        if (!f) return null
+        const bytes = new Uint8Array(await f.arrayBuffer())
+        c().validateBytes(bytes)
+        this.pendingBackup = bytes
+        return f.name
+      },
+      restoreBackup: async () => {
+        const bytes = this.pendingBackup
+        if (!bytes) throw new Error('No backup file chosen.')
+        await c().flush()
+        // Safety copy of the current data first.
+        if (!(await this.backup())) {
+          download(`flashcards-before-restore-${stamp()}.db`, c().exportBytes(), 'application/octet-stream')
+        }
+        c().restoreFrom(bytes)
+        this.pendingBackup = null
+        await c().flush()
+        study.clearUndo()
+        onOpen(c())
+      },
+
+      listTrash: () => trash.listTrash(c()),
+      restoreTrash: (id) => trash.restoreTrash(c(), id),
+      deleteTrashForever: (id) => trash.deleteTrashForever(c(), id),
+      emptyTrash: () => trash.emptyTrash(c()),
 
       getPrefs: () => this.getPrefs(),
       setPrefs: (p) => this.setPrefs(p),

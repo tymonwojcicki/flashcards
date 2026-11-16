@@ -22,6 +22,7 @@ import type {
   StudyMode,
   StudySession
 } from './types'
+import type { AutoBackupState, TrashItem } from './dataSafety'
 
 export interface Api {
   // ---- app / startup ----
@@ -35,6 +36,20 @@ export interface Api {
   chooseDataDir(): StartupState | null
   openDataDir(): void
   backupNow(): string
+  /** Browser-only storage: download a backup if enabled and the last one is 7+ days old. Returns the file name, else null. */
+  runAutoBackup(): string | null
+  getAutoBackup(): AutoBackupState
+  setAutoBackup(enabled: boolean): void
+  /** Pick a backup file and check it. Returns its name, or null if cancelled. Throws if it is not a backup. */
+  pickBackup(): string | null
+  /** Replace all data with the file chosen by pickBackup. The current data is backed up first. */
+  restoreBackup(): void
+
+  // ---- trash (30 days) ----
+  listTrash(): TrashItem[]
+  restoreTrash(id: string): void
+  deleteTrashForever(id: string): void
+  emptyTrash(): void
 
   // ---- prefs (per device) ----
   getPrefs(): Prefs
@@ -49,7 +64,8 @@ export interface Api {
   createDeck(name: string, parentId: Id | null): Deck
   renameDeck(id: Id, name: string): void
   moveDeck(id: Id, newParentId: Id | null): void
-  deleteDeck(id: Id): void
+  /** Moves the deck to the Trash. Returns the trash id (pass to restoreTrash to undo). */
+  deleteDeck(id: Id): string | null
   setDeckCollapsed(id: Id, collapsed: boolean): void
   /** null = inherit from parent */
   setDeckPreset(id: Id, presetId: Id | null): void
@@ -66,7 +82,8 @@ export interface Api {
   createNote(input: { deckId: Id; front: string; back: string; tags: string[]; reverse: boolean }): Note
   updateNote(id: Id, patch: { front?: string; back?: string; tags?: string[]; deckId?: Id }): Note
   getNote(id: Id): Note | null
-  deleteNotes(ids: Id[]): void
+  /** Moves the notes to the Trash. Returns the trash id. */
+  deleteNotes(ids: Id[]): string | null
   moveNotes(ids: Id[], deckId: Id): void
   setSuspended(cardIds: Id[], suspended: boolean): void
   addTags(noteIds: Id[], tags: string[]): void
@@ -101,7 +118,8 @@ export type ApiMethod = keyof Api
 
 /** Runtime list of methods (the preload needs names; contextBridge can't expose a Proxy). */
 export const API_METHODS = [
-  'getStartupState', 'forceUnlock', 'openReadOnly', 'resolveConflict', 'chooseDataDir', 'openDataDir', 'backupNow',
+  'getStartupState', 'forceUnlock', 'openReadOnly', 'resolveConflict', 'chooseDataDir', 'openDataDir', 'backupNow', 'runAutoBackup', 'getAutoBackup', 'setAutoBackup', 'pickBackup', 'restoreBackup',
+  'listTrash', 'restoreTrash', 'deleteTrashForever', 'emptyTrash',
   'getPrefs', 'setPrefs', 'getCollectionSettings', 'setCollectionSettings',
   'getDeckTree', 'createDeck', 'renameDeck', 'moveDeck', 'deleteDeck', 'setDeckCollapsed', 'setDeckPreset', 'getDeckPreset',
   'listPresets', 'createPreset', 'updatePreset', 'deletePreset',

@@ -12,6 +12,7 @@ import {
   type PresetConfig
 } from '../../shared/types'
 import { dayStart, nextDayStart } from './time'
+import { trashDeck } from './trash'
 
 interface DeckRow {
   id: string
@@ -174,9 +175,9 @@ export function moveDeck(col: Collection, id: Id, newParentId: Id | null): void 
   col.run('UPDATE decks SET parent_id = ? WHERE id = ?', [newParentId, id])
 }
 
-export function deleteDeck(col: Collection, id: Id): void {
-  // FK cascades remove subdecks, notes, cards and logs.
-  col.run('DELETE FROM decks WHERE id = ?', [id])
+/** Moves the deck, its sub-decks and cards to the Trash. Returns the trash id (for Undo). */
+export function deleteDeck(col: Collection, id: Id): string | null {
+  return trashDeck(col, id)
 }
 
 export function setDeckCollapsed(col: Collection, id: Id, collapsed: boolean): void {

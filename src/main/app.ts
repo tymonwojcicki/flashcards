@@ -8,6 +8,7 @@ import { backup, BACKUP_DIR, findConflicts } from './services/backup'
 import { PrefsStore } from './services/prefs'
 import { MEDIA_DIR } from './services/media'
 import { clearUndo } from './services/study'
+import { onOpen } from './services/startup'
 import type { LockStatus, StartupState } from '../shared/types'
 import type { MainEvent } from '../shared/api'
 
@@ -52,6 +53,7 @@ class AppState {
     } else {
       this.takeLock()
       backup(dir)
+      onOpen(this.col)
     }
   }
 
