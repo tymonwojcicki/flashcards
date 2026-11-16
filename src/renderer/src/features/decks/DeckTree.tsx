@@ -262,13 +262,32 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
         e.preventDefault()
         void remove(d)
         break
-      default:
-        if (e.key === studyKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          e.preventDefault()
-          study(d)
-        }
     }
   }
+
+  // Study key (Enter by default) starts the highlighted deck. Handled at window level because the
+  // highlighted row is not always the focused element (e.g. right after the page opens). Keys on
+  // buttons, inputs and inside dialogs keep their own behaviour.
+  const studyRef = useRef<() => void>(() => {})
+  studyRef.current = () => {
+    const d = (focused && byId.get(focused)) || rows[0]
+    if (d) study(d)
+  }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
+      if (e.key !== studyKey) return
+      if (renamingRef.current) return
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return
+      const a = document.activeElement as HTMLElement | null
+      const onRow = !!a?.matches('[data-row-id]')
+      if (!onRow && a && a !== document.body && !a.matches('main, [role="tree"]')) return
+      e.preventDefault()
+      studyRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [studyKey])
 
   const dragging = dragId ? byId.get(dragId) : null
   const validDrop = (target: Id | null): boolean => !!dragging && canMoveTo(tree, dragging, target)
