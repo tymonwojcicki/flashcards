@@ -53,8 +53,8 @@ async function chooseStore(): Promise<DataStore> {
   if (!h) return new BrowserStore()
   const perm = await h.queryPermission({ mode: 'readwrite' }).catch(() => 'denied' as const)
   if (perm === 'granted') return new FolderStore(h)
-  if (perm === 'prompt') return reconnectGate(h)
-  return new BrowserStore()
+  // 'prompt' or 'denied': let the user decide; never fall back to browser storage silently.
+  return reconnectGate(h)
 }
 
 async function start(): Promise<void> {
