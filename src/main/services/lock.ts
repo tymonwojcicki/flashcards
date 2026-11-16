@@ -43,17 +43,17 @@ export class Lock {
 
   acquire(): void {
     this.since = Date.now()
-    this.write()
-    this.timer = setInterval(() => this.write(), HEARTBEAT_MS)
+    if (this.write()) this.timer = setInterval(() => this.write(), HEARTBEAT_MS)
   }
 
-  private write(): void {
+  /** Returns false (and stops) if another device has taken the lock over. */
+  private write(): boolean {
     const current = readLock(this.dir)
     if (current && isTakenOver(current, device(), this.since)) {
       if (this.timer) clearInterval(this.timer)
       this.timer = null
       this.onLost?.(current.device)
-      return
+      return false
     }
     const data: LockData = { device: device(), pid: process.pid, heartbeat: Date.now(), since: this.since }
     try {
@@ -61,6 +61,7 @@ export class Lock {
     } catch {
       /* folder may be temporarily unavailable */
     }
+    return true
   }
 
   release(): void {

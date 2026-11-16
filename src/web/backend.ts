@@ -272,14 +272,14 @@ export class WebBackend {
         this.col.readOnly = true
         this.lockStatus = { kind: 'readonly', device: current.device }
         this.emit('lock-lost')
-        return
+        return false
       }
       await this.store
         .write(LOCK_FILE, JSON.stringify({ device: deviceName(), pid: 0, heartbeat: Date.now(), since }))
         .catch(() => {})
+      return true
     }
-    await write()
-    this.heartbeat = setInterval(write, 60_000)
+    if (await write()) this.heartbeat = setInterval(write, 60_000)
   }
 
   releaseLock(): void {
