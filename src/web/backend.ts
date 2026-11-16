@@ -1,78 +1,25 @@
 // Browser implementation of the full `Api` (same services as the Electron main process).
 import initSqlJs, { type SqlJsStatic } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url'
-import { BaseCollection, DB_FILE } from '../main/db/core'
 import * as decks from '../main/services/decks'
 import * as notes from '../main/services/notes'
 import * as study from '../main/services/study'
 import * as io from '../main/services/importExport'
 import * as trash from '../main/services/trash'
-import { autoBackupDue, getAutoBackup, onOpen, setAutoBackup } from '../main/services/startup'
+import { autoBackupDue, getAutoBackup, setAutoBackup } from '../main/services/startup'
 import { MEDIA_DIR, base64ToBytes, mediaNameFromUrl, saveMedia, type MediaPort } from '../main/services/mediaCore'
-import { BACKUP_DIR, backupsToDelete, isConflictName, isForeignLock, isTakenOver, safeFileName, stamp } from '../main/services/backupCore'
+import { safeFileName, stamp } from '../main/services/backupCore'
+import { DataFolderSession, type DataStore } from '../main/services/dataFolder'
 import type { Api, MainEvent, RendererApi } from '../shared/api'
 import { API_METHODS } from '../shared/api'
-import { DEFAULT_PREFS, type LockStatus, type Prefs, type StartupState } from '../shared/types'
+import { DEFAULT_PREFS, type Prefs } from '../shared/types'
 import { takeLaunchFile } from '../renderer/src/lib/launchFile'
-import { BrowserStore, FolderStore, pickFolder, rememberFolder, type DataStore } from './storage'
-
-// ---------------- collection ----------------
-class WebCollection extends BaseCollection {
-  protected override saveDelay = 250
-  knownModified = 0
-  private chain: Promise<void> = Promise.resolve()
-  constructor(
-    SQL: SqlJsStatic,
-    public store: DataStore,
-    bytes: Uint8Array | null
-  ) {
-    super(SQL, store.label, bytes)
-  }
-
-  protected override persist(bytes: Uint8Array): Promise<void> {
-    // Serialise writes so an older snapshot never overwrites a newer one.
-    // A failed write must not poison the chain (later saves would be skipped) and must stay pending.
-    this.chain = this.chain
-      .catch(() => {})
-      .then(async () => {
-        try {
-          await this.store.write(DB_FILE, bytes)
-          this.knownModified = (await this.store.modified(DB_FILE)) ?? Date.now()
-        } catch (e) {
-          console.error('[web] save failed', e)
-          this.dirty = true // retried by the next change, or when the tab is hidden / closed
-        }
-      })
-    return this.chain
-  }
-
-  /** Resolves once every write started so far has finished. */
-  settled(): Promise<void> {
-    return this.chain
-  }
-
-  async flush(): Promise<void> {
-    await this.saveNow()
-    await this.chain
-  }
-
-  async changedOnDisk(): Promise<boolean> {
-    const m = await this.store.modified(DB_FILE)
-    return m !== null && Math.abs(m - this.knownModified) > 1
-  }
-
-  async reload(): Promise<void> {
-    const bytes = await this.store.read(DB_FILE)
-    if (bytes) this.replaceBytes(bytes)
-    this.knownModified = (await this.store.modified(DB_FILE)) ?? 0
-  }
-}
+import { FolderStore, pickFolder, rememberFolder } from './storage'
 
 let SQL: SqlJsStatic | null = null
 const sqlJs = async () => (SQL ??= await initSqlJs({ locateFile: () => wasmUrl }))
 
-// ---------------- device lock (same format as desktop app) ----------------
-const LOCK_FILE = 'app.lock'
+// ---------------- device name (written into the data folder's lock) ----------------
 let sessionDevice: string | null = null
 const deviceName = (): string => {
   try {
@@ -195,132 +142,22 @@ function download(name: string, data: Uint8Array | string, type: string): void {
 
 // ---------------- the backend ----------------
 export class WebBackend {
-  col!: WebCollection
-  store!: DataStore
-  lockStatus: LockStatus = { kind: 'ok' }
-  private heartbeat: ReturnType<typeof setInterval> | null = null
   private listeners = new Set<(e: MainEvent) => void>()
+  readonly session = new DataFolderSession({ sql: sqlJs, device: deviceName, emit: (e) => this.emit(e) })
   media = new MediaUrls(() => mediaPort(this.store))
   /** Backup file chosen by pickBackup, waiting for the user's confirmation. */
   private pendingBackup: Uint8Array | null = null
-  private changedSinceBackup = false
-  private backupTimer: ReturnType<typeof setInterval> | null = null
+
+  get col() {
+    return this.session.col
+  }
+  get store(): DataStore {
+    return this.session.store
+  }
 
   async open(store: DataStore): Promise<void> {
-    this.releaseLock()
-    this.store = store
     this.media.reset()
-    study.clearUndo()
-    const bytes = await store.read(DB_FILE)
-    this.col = new WebCollection(await sqlJs(), store, bytes)
-    this.col.knownModified = (await store.modified(DB_FILE)) ?? 0
-    if (!bytes) {
-      this.col.markDirty()
-      await this.col.flush()
-    }
-    this.col.onChange = () => {
-      this.changedSinceBackup = true
-      this.emit('collection-changed')
-    }
-    const foreign = await this.foreignLock()
-    if (foreign) {
-      this.col.readOnly = true
-      this.lockStatus = { kind: 'locked', device: foreign.device, since: foreign.since }
-    } else {
-      await this.takeLock()
-      // takeLock may already have found a takeover and gone read-only.
-      if (!this.col.readOnly) {
-        await this.backup()
-        onOpen(this.col)
-        this.changedSinceBackup = false
-      }
-    }
-    // Folder mode: keep rolling backups while the app stays open.
-    if (this.backupTimer) clearInterval(this.backupTimer)
-    this.backupTimer = setInterval(() => {
-      if (this.changedSinceBackup && !this.col.readOnly) {
-        this.changedSinceBackup = false
-        void this.backup()
-      }
-    }, 30 * 60_000)
-  }
-
-  // ----- lock -----
-  private async readLock(): Promise<{ device: string; heartbeat: number; since: number } | null> {
-    if (this.store.kind !== 'folder') return null
-    try {
-      const raw = await this.store.read(LOCK_FILE)
-      return raw ? JSON.parse(new TextDecoder().decode(raw)) : null
-    } catch {
-      return null
-    }
-  }
-
-  private async foreignLock(): Promise<{ device: string; since: number } | null> {
-    const l = await this.readLock()
-    return l && isForeignLock(l, deviceName()) ? l : null
-  }
-
-  private async takeLock(): Promise<void> {
-    this.col.readOnly = false
-    this.lockStatus = { kind: 'ok' }
-    if (this.store.kind !== 'folder') return
-    const since = Date.now()
-    const write = async () => {
-      const current = await this.readLock()
-      if (current && isTakenOver(current, deviceName(), since)) {
-        // Another device pressed "Open anyway": stop writing so we don't overwrite its changes.
-        if (this.heartbeat) clearInterval(this.heartbeat)
-        this.heartbeat = null
-        this.col.readOnly = true
-        this.lockStatus = { kind: 'readonly', device: current.device }
-        this.emit('lock-lost')
-        return false
-      }
-      await this.store
-        .write(LOCK_FILE, JSON.stringify({ device: deviceName(), pid: 0, heartbeat: Date.now(), since }))
-        .catch(() => {})
-      return true
-    }
-    if (await write()) this.heartbeat = setInterval(write, 60_000)
-  }
-
-  releaseLock(): void {
-    if (this.heartbeat) clearInterval(this.heartbeat)
-    this.heartbeat = null
-    if (this.store?.kind === 'folder' && this.col && !this.col.readOnly) void this.store.remove(LOCK_FILE)
-  }
-
-  // ----- backups (folder mode only; browser mode can download a copy) -----
-  async backup(): Promise<string | null> {
-    if (this.store.kind !== 'folder') return null
-    await this.col.flush()
-    const bytes = await this.store.read(DB_FILE)
-    if (!bytes) return null
-    const name = `${BACKUP_DIR}/collection-${stamp()}.db`
-    await this.store.write(name, bytes)
-    for (const f of backupsToDelete((await this.store.list(BACKUP_DIR)).map((f) => f.name))) {
-      await this.store.remove(`${BACKUP_DIR}/${f}`)
-    }
-    return name
-  }
-
-  async conflicts() {
-    if (this.store.kind !== 'folder') return []
-    return (await this.store.list('')).filter((f) => isConflictName(f.name, DB_FILE)).map((f) => ({
-      file: f.name,
-      modified: f.modified,
-      size: f.size
-    }))
-  }
-
-  async startupState(): Promise<StartupState> {
-    return {
-      dataDir: this.store.kind === 'folder' ? `${this.store.label} (folder)` : 'This browser only',
-      lock: this.lockStatus,
-      conflicts: await this.conflicts(),
-      readOnly: this.col.readOnly
-    }
+    await this.session.open(store)
   }
 
   // ----- events -----
@@ -331,15 +168,6 @@ export class WebBackend {
     const l = (x: MainEvent) => x === e && cb()
     this.listeners.add(l)
     return () => this.listeners.delete(l)
-  }
-
-  async checkExternalChanges(): Promise<void> {
-    if (!this.col) return
-    await this.col.settled() // our own in-flight write must not look like an external change
-    if (this.col.hasUnsavedChanges || !(await this.col.changedOnDisk())) return
-    await this.col.reload()
-    study.clearUndo()
-    this.emit('collection-reloaded')
   }
 
   // ----- prefs (per device) -----
@@ -361,53 +189,20 @@ export class WebBackend {
     const c = () => this.col
     const port = () => mediaPort(this.store)
     return {
-      getStartupState: () => this.startupState(),
-      forceUnlock: async () => {
-        if (await this.col.changedOnDisk()) await this.col.reload()
-        await this.takeLock()
-        return this.startupState()
-      },
-      openReadOnly: async () => {
-        const device = this.lockStatus.kind === 'locked' ? this.lockStatus.device : 'another device'
-        this.col.readOnly = true
-        this.lockStatus = { kind: 'readonly', device }
-        return this.startupState()
-      },
-      resolveConflict: async (file, action) => {
-        const bytes = await this.store.read(file)
-        if (bytes && action === 'use') {
-          await this.backup()
-          await this.store.write(DB_FILE, bytes)
-          await this.col.reload()
-          study.clearUndo()
-        }
-        if (bytes) await this.store.write(`${BACKUP_DIR}/conflict-${Date.now()}-${file}`, bytes)
-        await this.store.remove(file)
-        this.emit('collection-reloaded')
-        return this.startupState()
-      },
+      getStartupState: () => this.session.startupState(),
+      forceUnlock: () => this.session.forceUnlock(),
+      openReadOnly: () => this.session.openReadOnly(),
+      resolveConflict: (file, action) => this.session.resolveConflict(file, action),
       chooseDataDir: async () => {
         const h = await pickFolder()
         if (!h) return null
-        const target = new FolderStore(h)
-        if (!(await target.exists(DB_FILE))) {
-          // Copy current data into the new folder.
-          await this.col.flush()
-          await target.write(DB_FILE, this.col.exportBytes())
-          for (const f of await this.store.list(MEDIA_DIR)) {
-            const b = await this.store.read(`${MEDIA_DIR}/${f.name}`)
-            if (b) await target.write(`${MEDIA_DIR}/${f.name}`, b)
-          }
-        }
-        await this.col.flush()
         await rememberFolder(h)
-        await this.open(target)
-        this.emit('collection-reloaded')
-        return this.startupState()
+        this.media.reset()
+        return this.session.switchTo(new FolderStore(h))
       },
       openDataDir: () => {},
       backupNow: async () => {
-        const name = await this.backup()
+        const name = await this.session.backup()
         if (name) return name
         await this.col.flush()
         const file = `flashcards-backup-${stamp()}.db`
@@ -435,16 +230,10 @@ export class WebBackend {
       restoreBackup: async () => {
         const bytes = this.pendingBackup
         if (!bytes) throw new Error('No backup file chosen.')
-        await c().flush()
-        // Safety copy of the current data first.
-        if (!(await this.backup())) {
-          download(`flashcards-before-restore-${stamp()}.db`, c().exportBytes(), 'application/octet-stream')
-        }
-        c().restoreFrom(bytes)
+        await this.session.restore(bytes, (current) =>
+          download(`flashcards-before-restore-${stamp()}.db`, current, 'application/octet-stream')
+        )
         this.pendingBackup = null
-        await c().flush()
-        study.clearUndo()
-        onOpen(c())
       },
 
       listTrash: () => trash.listTrash(c()),

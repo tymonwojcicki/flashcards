@@ -2,6 +2,7 @@
 //  - FolderStore: a real folder picked by the user (File System Access API, Chrome/Edge). Put it in
 //    OneDrive/Dropbox to sync — it uses the exact same layout as the desktop app (collection.db, media/, backups/).
 //  - BrowserStore: IndexedDB fallback ("this browser only").
+import type { DataStore } from '../main/services/dataFolder'
 
 // ---------- tiny IndexedDB key-value ----------
 const DB_NAME = 'flashcards'
@@ -54,19 +55,8 @@ export async function kvKeys(prefix: string): Promise<string[]> {
   })
 }
 
-// ---------- store interface ----------
-/** Paths are like "collection.db", "media/abc.png", "backups/x.db". */
-export interface DataStore {
-  kind: 'folder' | 'browser'
-  label: string
-  read(path: string): Promise<Uint8Array | null>
-  write(path: string, bytes: Uint8Array | string): Promise<void>
-  remove(path: string): Promise<void>
-  exists(path: string): Promise<boolean>
-  /** File names directly inside a sub-folder ('' = root). */
-  list(dir: string): Promise<{ name: string; modified: number; size: number }[]>
-  modified(path: string): Promise<number | null>
-}
+// ---------- stores ----------
+export type { DataStore }
 
 const toBytes = (b: Uint8Array | string) => (typeof b === 'string' ? new TextEncoder().encode(b) : b)
 

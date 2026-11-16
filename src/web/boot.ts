@@ -62,14 +62,14 @@ async function start(): Promise<void> {
   ;(window as unknown as { api: unknown }).api = backend.rendererApi()
 
   // Pick up changes synced from another PC when the window regains focus.
-  window.addEventListener('focus', () => void backend.checkExternalChanges())
+  window.addEventListener('focus', () => void backend.session.checkExternalChanges())
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') void backend.col.flush()
-    else void backend.checkExternalChanges()
+    else void backend.session.checkExternalChanges()
   })
   window.addEventListener('pagehide', () => {
     void backend.col.flush()
-    backend.releaseLock()
+    backend.session.release()
   })
   // Ask the browser not to evict IndexedDB data.
   void navigator.storage?.persist?.()
