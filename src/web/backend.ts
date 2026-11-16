@@ -228,9 +228,12 @@ export class WebBackend {
       this.lockStatus = { kind: 'locked', device: foreign.device, since: foreign.since }
     } else {
       await this.takeLock()
-      await this.backup()
-      onOpen(this.col)
-      this.changedSinceBackup = false
+      // takeLock may already have found a takeover and gone read-only.
+      if (!this.col.readOnly) {
+        await this.backup()
+        onOpen(this.col)
+        this.changedSinceBackup = false
+      }
     }
     // Folder mode: keep rolling backups while the app stays open.
     if (this.backupTimer) clearInterval(this.backupTimer)

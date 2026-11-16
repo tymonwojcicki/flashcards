@@ -52,13 +52,19 @@ class AppState {
       this.lockStatus = { kind: 'locked', device: foreign.device, since: foreign.since }
     } else {
       this.takeLock()
-      backup(dir)
-      onOpen(this.col)
+      // takeLock may already have found a takeover and gone read-only.
+      if (!this.col.readOnly) {
+        backup(dir)
+        onOpen(this.col)
+      }
     }
   }
 
   private takeLock(): void {
     this.lock?.release()
+    // Before acquire(): it can call onLost synchronously, which must win.
+    this.col.readOnly = false
+    this.lockStatus = { kind: 'ok' }
     this.lock = new Lock(this.col.dir, (device) => {
       // Another PC pressed "Open anyway": stop writing so we don't overwrite its changes.
       this.col.readOnly = true
@@ -66,8 +72,6 @@ class AppState {
       this.emit('lock-lost')
     })
     this.lock.acquire()
-    this.col.readOnly = false
-    this.lockStatus = { kind: 'ok' }
   }
 
   startupState(): StartupState {
