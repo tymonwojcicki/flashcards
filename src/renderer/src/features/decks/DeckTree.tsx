@@ -169,6 +169,7 @@ export function DeckTree({ tree, onAddSub, onMove, onExport, focusId }: DeckTree
       await refreshDecks()
       toast(`Deleted "${d.name}"`, {
         kind: 'success',
+        sound: 'delete',
         action: trashId
           ? {
               label: 'Undo',

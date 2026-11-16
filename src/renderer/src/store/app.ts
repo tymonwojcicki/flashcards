@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { DEFAULT_PREFS } from '@shared/types'
 import type { DeckNode, Prefs, StartupState, StudyMode } from '@shared/types'
 import { toast } from '@renderer/components/ui/Toast'
+import { playSound } from '@renderer/lib/sound'
 
 export type Route =
   | { name: 'decks' }
@@ -39,8 +40,26 @@ export function resolveTheme(theme: Prefs['theme']): 'light' | 'dark' {
 
 function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
-  root.dataset.theme = resolveTheme(prefs.theme)
-  root.dataset.accent = ['ember', 'aqua', 'iris'].includes(prefs.accent) ? prefs.accent : 'ember'
+  const theme = resolveTheme(prefs.theme)
+  const accent = ['ember', 'aqua', 'iris'].includes(prefs.accent) ? prefs.accent : 'ember'
+  const started = root.classList.contains('font-anim') // false on the first apply at startup
+  const themeChanged = started && root.dataset.theme !== theme
+  const accentChanged = started && root.dataset.accent !== accent
+  const swap = (): void => {
+    root.dataset.theme = theme
+    root.dataset.accent = accent
+  }
+  if (themeChanged || accentChanged) {
+    playSound(themeChanged ? (theme === 'dark' ? 'themeDark' : 'themeLight') : 'accent')
+    // Soft diagonal sweep into the new colours (View Transitions; instant where unsupported).
+    const vt = (document as Document & { startViewTransition?: (cb: () => void) => unknown }).startViewTransition
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (vt && !reduce) {
+      root.classList.add('theme-sweep')
+      const t = vt.call(document, swap) as { finished?: Promise<void> }
+      void t.finished?.finally(() => root.classList.remove('theme-sweep'))
+    } else swap()
+  } else swap()
   root.style.setProperty('--font-scale', String(prefs.fontScale || 1))
   // Animate later font-size changes, but not the first apply at startup (no zoom on launch).
   if (!root.classList.contains('font-anim')) {

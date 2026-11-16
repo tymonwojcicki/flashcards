@@ -22,6 +22,12 @@ export type SoundName =
   | 'error'
   | 'import'
   | 'preview'
+  | 'start'
+  | 'themeLight'
+  | 'themeDark'
+  | 'accent'
+  | 'nav'
+  | 'delete'
 
 // Pentatonic note frequencies (Hz).
 const N = {
@@ -55,8 +61,63 @@ interface Recipe {
 }
 
 const R: Record<SoundName, Recipe> = {
-  // Frequent, so barely there: a soft paper tap.
-  reveal: { events: [{ kind: 'tap', at: 0, vel: 0.5, center: 2600 }], cutoff: 6000, room: 0.08 },
+  // Frequent: a dry, crisp card-flip tick (tap + a very short high mallet), no room.
+  reveal: {
+    events: [
+      { kind: 'tap', at: 0, vel: 0.45, center: 3200 },
+      { kind: 'mallet', f: N.E6, at: 0.004, vel: 0.22, decay: 0.06, tone: 0.2 }
+    ],
+    cutoff: 7000,
+    room: 0
+  },
+  // Session start: quick two-note "ready".
+  start: {
+    events: [
+      { kind: 'mallet', f: N.C5, at: 0, vel: 0.5, decay: 0.25, tone: 0.55 },
+      { kind: 'mallet', f: N.G5, at: 0.065, vel: 0.55, decay: 0.4, tone: 0.6 }
+    ],
+    cutoff: 4200,
+    room: 0.12
+  },
+  // Theme change: a fast light shimmer, rising into light, falling into dark (matches the sweep).
+  themeLight: {
+    events: [
+      { kind: 'mallet', f: N.G5, at: 0, vel: 0.32, decay: 0.2, tone: 0.6 },
+      { kind: 'mallet', f: N.C6, at: 0.04, vel: 0.34, decay: 0.24, tone: 0.6 },
+      { kind: 'mallet', f: N.E6, at: 0.08, vel: 0.36, decay: 0.4, tone: 0.65 }
+    ],
+    cutoff: 5200,
+    room: 0.12
+  },
+  themeDark: {
+    events: [
+      { kind: 'mallet', f: N.E5, at: 0, vel: 0.36, decay: 0.2, tone: 0.45 },
+      { kind: 'mallet', f: N.C5, at: 0.04, vel: 0.36, decay: 0.24, tone: 0.45 },
+      { kind: 'mallet', f: N.G4, at: 0.08, vel: 0.4, decay: 0.45, tone: 0.45 }
+    ],
+    cutoff: 3200,
+    room: 0.12
+  },
+  accent: {
+    events: [
+      { kind: 'tap', at: 0, vel: 0.3, center: 3000 },
+      { kind: 'mallet', f: N.A5, at: 0.008, vel: 0.42, decay: 0.32, tone: 0.6 }
+    ],
+    cutoff: 5000,
+    room: 0.08
+  },
+  // Sidebar navigation: a light, dry tick.
+  nav: { events: [{ kind: 'tap', at: 0, vel: 0.32, center: 2400 }], cutoff: 6000, room: 0 },
+  // Moved to Trash: a soft low "set down".
+  delete: {
+    events: [
+      { kind: 'tap', at: 0, vel: 0.3, center: 1400 },
+      { kind: 'mallet', f: N.D4, at: 0.01, vel: 0.5, decay: 0.2, tone: 0.2 },
+      { kind: 'mallet', f: N.A3, at: 0.07, vel: 0.45, decay: 0.26, tone: 0.15 }
+    ],
+    cutoff: 1500,
+    room: 0.06
+  },
   // Gentle, low, muted knock. Not a buzzer.
   again: {
     events: [{ kind: 'mallet', f: N.A3, at: 0, vel: 0.75, decay: 0.22, tone: 0.1 }],
@@ -107,7 +168,7 @@ const R: Record<SoundName, Recipe> = {
     cutoff: 3600,
     room: 0.14
   },
-  toggle: { events: [{ kind: 'tap', at: 0, vel: 0.4, center: 3400 }], cutoff: 7000, room: 0.05 },
+  toggle: { events: [{ kind: 'tap', at: 0, vel: 0.45, center: 3400 }], cutoff: 7000, room: 0 },
   success: {
     events: [
       { kind: 'mallet', f: N.E5, at: 0, vel: 0.35, decay: 0.3, tone: 0.6 },
@@ -140,7 +201,7 @@ const R: Record<SoundName, Recipe> = {
   }
 }
 
-const MASTER = 0.7
+const MASTER = 0.85
 
 // ---- per-context shared resources (noise buffer, room impulse, output bus) ----
 
@@ -269,7 +330,7 @@ export function renderSound(ctx: BaseAudioContext, name: SoundName, volume: numb
   const verb = ctx.createConvolver()
   verb.buffer = bus(ctx).impulse
   lp.connect(dry).connect(comp)
-  lp.connect(verb).connect(wet).connect(comp)
+  if (r.room > 0) lp.connect(verb).connect(wet).connect(comp)
 
   for (const e of r.events) {
     if (e.kind === 'mallet') mallet(ctx, lp, t0 + e.at, e)

@@ -48,7 +48,10 @@ function NavButton({ item, collapsed, badge }: { item: NavItem; collapsed: boole
   const active = route.name === item.route.name
   const btn = (
     <button
-      onClick={() => navigate(item.route)}
+      onClick={() => {
+        if (!active) playSound('nav')
+        navigate(item.route)
+      }}
       aria-current={active ? 'page' : undefined}
       aria-label={collapsed ? item.label : undefined}
       className={clsx(

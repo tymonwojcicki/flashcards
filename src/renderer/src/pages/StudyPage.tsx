@@ -173,6 +173,7 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
         setTotal(s.cards.length)
         commit(makeQueue(s.cards))
         setPhase('ready')
+        if (s.cards.length > 0) playSound('start')
       })
       .catch((e: unknown) => {
         if (cancelled) return

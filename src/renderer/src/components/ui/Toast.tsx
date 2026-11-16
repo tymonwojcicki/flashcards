@@ -1,13 +1,15 @@
 import { create } from 'zustand'
 import clsx from 'clsx'
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
-import { playSound } from '@renderer/lib/sound'
+import { playSound, type SoundName } from '@renderer/lib/sound'
 
 export interface ToastOptions {
   kind?: 'info' | 'success' | 'error'
   action?: { label: string; onClick: () => void }
   /** Toasts sharing a key replace each other instead of stacking. */
   key?: string
+  /** Sound to play instead of the default for this kind; false = silent. */
+  sound?: SoundName | false
 }
 
 interface ToastItem extends ToastOptions {
@@ -34,7 +36,10 @@ const timers = new Map<number, ReturnType<typeof setTimeout>>()
  * on screen replaces it in place instead of stacking (e.g. "Hotkey hints on" → "off").
  */
 export function toast(message: string, opts: ToastOptions = {}): void {
-  if (opts.kind === 'success') playSound('success')
+  if (opts.sound) playSound(opts.sound)
+  else if (opts.sound === false) {
+    /* silent */
+  } else if (opts.kind === 'success') playSound('success')
   else if (opts.kind === 'error') playSound('error')
   const existing = opts.key ? useToasts.getState().items.find((t) => t.key === opts.key && !t.closing) : undefined
   if (existing) {

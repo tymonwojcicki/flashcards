@@ -329,6 +329,7 @@ export default function BrowsePage({ deckId: propDeckId }: { deckId?: string }):
       const id: string = trashId
       toast('Deleted', {
         kind: 'success',
+        sound: 'delete',
         action: { label: 'Undo', onClick: () => void run(() => window.api.restoreTrash(id), 'Restored') }
       })
     }
