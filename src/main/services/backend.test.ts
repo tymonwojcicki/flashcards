@@ -114,6 +114,19 @@ describe('decks', () => {
     })
   })
 
+  it("a parent deck's own limit covers its whole subtree", async () => {
+    const [child] = decks.ensureDeckPath(col, 'P::C')
+    const parent = decks.getDeckTree(col)[0].id
+    const small = decks.createPreset(col, 'Small', { ...decks.resolvePreset(col, parent).config, newPerDay: 3 })
+    decks.setDeckPreset(col, parent, small.id)
+    const big = decks.createPreset(col, 'Big', { ...small.config, newPerDay: 100 })
+    decks.setDeckPreset(col, child, big.id)
+    for (let i = 0; i < 5; i++) notes.createNote(col, { deckId: child, front: `q${i}`, back: 'a', tags: [], reverse: false })
+    const [p] = decks.getDeckTree(col)
+    expect([p.counts.new, p.children[0].counts.new]).toEqual([3, 5])
+    expect((await study.getSession(col, parent, 'mixed')).cards).toHaveLength(3)
+  })
+
   it('child decks inherit preset from parent', () => {
     const [leaf] = decks.ensureDeckPath(col, 'A::B')
     const root = decks.getDeckTree(col)[0].id

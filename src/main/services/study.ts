@@ -17,6 +17,7 @@ import { deckPath, getCollectionSettings, resolvePreset, subtreeIds } from './de
 import { toCard, toNote, type CardRow } from './notes'
 import { preview, retrievability, reviewCard, reviveCard, serializeCard } from './scheduler'
 import { dayKey, dayStart, nextDayStart } from './time'
+import { loadTodaysQueue, shuffle } from './todaysQueue'
 
 type JoinedRow = CardRow & {
   deck_id: string
@@ -29,14 +30,6 @@ type JoinedRow = CardRow & {
 
 const SELECT_JOINED = `SELECT c.*, n.deck_id, n.front, n.back, n.tags, n.created_at, n.updated_at
   FROM cards c JOIN notes n ON n.id = c.note_id`
-
-function shuffle<T>(a: T[]): T[] {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
 
 /** Evenly interleave `b` into `a`. */
 function interleave<T>(a: T[], b: T[]): T[] {
@@ -68,9 +61,6 @@ function toStudyCard(col: Collection, r: JoinedRow, pathCache: Map<string, strin
 export async function getSession(col: Collection, deckId: Id, mode: StudyMode, now = Date.now()): Promise<StudySession> {
   const ids = subtreeIds(col, deckId)
   const cfg = resolvePreset(col, deckId).config
-  const settings = getCollectionSettings(col)
-  const start = dayStart(now, settings.dayStartHour)
-  const end = nextDayStart(now, settings.dayStartHour)
   const inDecks = `n.deck_id IN (${ph(ids.length)})`
   const avail = `c.suspended = 0 AND (c.buried_until IS NULL OR c.buried_until <= ?)`
   const q = (extra: string, params: SqlValue[], order: string, limit?: number) =>
@@ -96,39 +86,13 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
     return { mode, deckId, affectsSchedule: false, cards: wrap(shuffle(scored.slice(0, 50).map(([, r]) => r))) }
   }
 
-  const done = col.get<{ nd: number | null; rd: number | null }>(
-    `SELECT SUM(l.state = 0) AS nd, SUM(l.state = 2) AS rd
-     FROM review_log l JOIN cards c ON c.id = l.card_id JOIN notes n ON n.id = c.note_id
-     WHERE ${inDecks} AND l.ts >= ?`,
-    [...ids, start]
-  )!
-  const learning = mode === 'learn' ? [] : q('c.state IN (1,3) AND c.due < ?', [end], 'c.due')
-  const reviewLimit = Math.max(0, cfg.reviewsPerDay - (done.rd ?? 0))
-  const newLimit = Math.max(0, cfg.newPerDay - (done.nd ?? 0))
-  // With bury on, the limit is applied after removing siblings (below); otherwise a reverse pair
-  // would use two slots for the one card shown, halving the day's new cards.
-  const limit = (n: number) => (cfg.burySiblings ? undefined : n)
-  const reviews = mode === 'learn' ? [] : q('c.state = 2 AND c.due < ?', [end], 'c.due', limit(reviewLimit))
-  let fresh =
-    mode === 'review'
-      ? []
-      : q('c.state = 0', [], cfg.newOrder === 'random' ? 'RANDOM()' : 'c.position, c.direction', limit(newLimit))
-
-  let rv = reviews
-  if (cfg.burySiblings) {
-    // Only one card per note in new/review queues (learning cards always shown).
-    const seen = new Set(learning.map((r) => r.note_id))
-    const dedupe = (rows: JoinedRow[]) =>
-      rows.filter((r) => (seen.has(r.note_id) ? false : (seen.add(r.note_id), true)))
-    rv = dedupe(reviews).slice(0, reviewLimit)
-    fresh = dedupe(fresh).slice(0, newLimit)
-  }
-  return {
-    mode,
-    deckId,
-    affectsSchedule: true,
-    cards: wrap([...learning, ...interleave(rv, fresh)])
-  }
+  const tq = loadTodaysQueue(col, deckId, now, mode === 'learn' ? (c) => c.state === CardState.New : undefined)
+  const picked =
+    mode === 'learn' ? tq.new : mode === 'review' ? [...tq.learning, ...tq.review] : [...tq.learning, ...interleave(tq.review, tq.new)]
+  const rows = new Map(
+    col.all<JoinedRow>(`${SELECT_JOINED} WHERE c.id IN (${ph(picked.length)})`, picked.map((c) => c.id)).map((r) => [r.id, r])
+  )
+  return { mode, deckId, affectsSchedule: true, cards: wrap(picked.map((c) => rows.get(c.id)!)) }
 }
 
 // ---------------- answering & undo ----------------

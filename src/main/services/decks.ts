@@ -12,6 +12,7 @@ import {
   type PresetConfig
 } from '../../shared/types'
 import { dayStart, nextDayStart } from './time'
+import { doneTodayByDeck, inheritedPreset, isAvailable, selectToday, SELECT_CANDIDATES, type Candidate } from './todaysQueue'
 import { trashDeck } from './trash'
 
 interface DeckRow {
@@ -119,15 +120,8 @@ export function deckPath(col: Collection, id: Id): string[] {
 
 /** Resolve the effective preset by walking up the tree. */
 export function resolvePreset(col: Collection, deckId: Id): Preset {
-  let cur = getDeck(col, deckId)
-  while (cur) {
-    if (cur.presetId) {
-      const p = getPreset(col, cur.presetId)
-      if (p) return p
-    }
-    cur = cur.parentId ? getDeck(col, cur.parentId) : undefined
-  }
-  return getPreset(col, DEFAULT_PRESET_ID)!
+  const decks = new Map(allDecks(col).map((d) => [d.id, d]))
+  return inheritedPreset(decks, new Map(listPresets(col).map((p) => [p.id, p])), deckId)
 }
 
 export function createDeck(col: Collection, name: string, parentId: Id | null): Deck {
@@ -191,56 +185,17 @@ export function setDeckPreset(col: Collection, id: Id, presetId: Id | null): voi
 }
 
 // ---------------- tree with counts ----------------
-interface RawCounts {
-  new: number
-  learning: number
-  review: number
-  total: number
-  newDone: number
-  reviewDone: number
-  /** New / review counted once per note, as a study session does with bury siblings on. */
-  newNotes: number
-  reviewNotes: number
-}
-
 export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
-  const settings = getCollectionSettings(col)
-  const start = dayStart(now, settings.dayStartHour)
-  const end = nextDayStart(now, settings.dayStartHour)
+  const { dayStartHour } = getCollectionSettings(col)
+  const dayEnd = nextDayStart(now, dayStartHour)
   const decks = allDecks(col)
 
-  const raw = new Map<string, RawCounts>()
-  const blank = (): RawCounts => ({ new: 0, learning: 0, review: 0, total: 0, newDone: 0, reviewDone: 0, newNotes: 0, reviewNotes: 0 })
-  // Per note first, so bury siblings can count once per note like getSession: a note with a due
-  // learning card shows no new/review card, and one with a due review shows no new card.
-  for (const r of col.all<{ deck_id: string; n: number; l: number; r: number; t: number; nn: number; rn: number }>(
-    `SELECT n.deck_id, SUM(x.n) AS n, SUM(x.l) AS l, SUM(x.r) AS r, SUM(x.t) AS t,
-       SUM(x.n > 0 AND x.l = 0 AND x.r = 0) AS nn, SUM(x.r > 0 AND x.l = 0) AS rn
-     FROM (SELECT note_id,
-             SUM(state = 0) AS n,
-             SUM(state IN (1,3) AND due < ?) AS l,
-             SUM(state = 2 AND due < ?) AS r,
-             COUNT(*) AS t
-           FROM cards
-           WHERE suspended = 0 AND (buried_until IS NULL OR buried_until <= ?)
-           GROUP BY note_id) x
-     JOIN notes n ON n.id = x.note_id
-     GROUP BY n.deck_id`,
-    [end, end, now]
-  )) {
-    raw.set(r.deck_id, { ...blank(), new: r.n, learning: r.l, review: r.r, total: r.t, newNotes: r.nn, reviewNotes: r.rn })
+  const cardsByDeck = new Map<string, Candidate[]>()
+  for (const c of col.all<Candidate>(SELECT_CANDIDATES)) {
+    if (!cardsByDeck.has(c.deck_id)) cardsByDeck.set(c.deck_id, [])
+    cardsByDeck.get(c.deck_id)!.push(c)
   }
-  for (const r of col.all<{ deck_id: string; nd: number; rd: number }>(
-    `SELECT n.deck_id, SUM(l.state = 0) AS nd, SUM(l.state = 2) AS rd
-     FROM review_log l JOIN cards c ON c.id = l.card_id JOIN notes n ON n.id = c.note_id
-     WHERE l.ts >= ? GROUP BY n.deck_id`,
-    [start]
-  )) {
-    const c = raw.get(r.deck_id) ?? blank()
-    c.newDone = r.nd
-    c.reviewDone = r.rd
-    raw.set(r.deck_id, c)
-  }
+  const doneByDeck = doneTodayByDeck(col, dayStart(now, dayStartHour))
 
   const byParent = new Map<string | null, Deck[]>()
   for (const d of decks) {
@@ -248,41 +203,29 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
     if (!byParent.has(k)) byParent.set(k, [])
     byParent.get(k)!.push(d)
   }
-
-  // Resolve presets in memory (one query) instead of walking the tree with queries per deck.
-  const presets = new Map(listPresets(col).map((p) => [p.id, p.config]))
+  const presets = new Map(listPresets(col).map((p) => [p.id, p]))
   const byId = new Map(decks.map((d) => [d.id, d]))
-  const presetFor = (id: string): PresetConfig => {
-    for (let cur = byId.get(id); cur; cur = cur.parentId ? byId.get(cur.parentId) : undefined) {
-      const cfg = cur.presetId ? presets.get(cur.presetId) : undefined
-      if (cfg) return cfg
-    }
-    return presets.get(DEFAULT_PRESET_ID)!
-  }
 
-  const build = (d: Deck, path: string[], depth: number): [DeckNode, RawCounts] => {
+  // shortcut: re-runs the selection over each deck's whole subtree (cards x depth); fine to ~20k cards
+  // and 100 decks, beyond that group rows by deck once and add the groups up the tree.
+  type Subtree = { cards: Candidate[]; done: { new: number; review: number } }
+  const build = (d: Deck, path: string[], depth: number): [DeckNode, Subtree] => {
     const kids = (byParent.get(d.id) ?? []).map((k) => build(k, [...path, d.name], depth + 1))
-    const sum = { ...(raw.get(d.id) ?? blank()) }
-    for (const [, kc] of kids) {
-      sum.new += kc.new
-      sum.learning += kc.learning
-      sum.review += kc.review
-      sum.total += kc.total
-      sum.newDone += kc.newDone
-      sum.reviewDone += kc.reviewDone
-      sum.newNotes += kc.newNotes
-      sum.reviewNotes += kc.reviewNotes
+    const own = doneByDeck.get(d.id)
+    const sub: Subtree = { cards: [...(cardsByDeck.get(d.id) ?? [])], done: { new: own?.new ?? 0, review: own?.review ?? 0 } }
+    for (const [, k] of kids) {
+      for (const c of k.cards) sub.cards.push(c)
+      sub.done.new += k.done.new
+      sub.done.review += k.done.review
     }
-    const cfg = presetFor(d.id)
-    const fresh = cfg.burySiblings ? sum.newNotes : sum.new
-    const reviewDue = cfg.burySiblings ? sum.reviewNotes : sum.review
+    const q = selectToday(sub.cards, { preset: inheritedPreset(byId, presets, d.id).config, done: sub.done, dayEnd, now })
     const counts: DeckCounts = {
-      new: Math.max(0, Math.min(fresh, cfg.newPerDay - sum.newDone)),
-      learning: sum.learning,
-      review: Math.max(0, Math.min(reviewDue, cfg.reviewsPerDay - sum.reviewDone)),
-      total: sum.total
+      new: q.new.length,
+      learning: q.learning.length,
+      review: q.review.length,
+      total: sub.cards.filter((c) => isAvailable(c, now)).length
     }
-    return [{ ...d, path: [...path, d.name], depth, children: kids.map(([n]) => n), counts }, sum]
+    return [{ ...d, path: [...path, d.name], depth, children: kids.map(([n]) => n), counts }, sub]
   }
 
   return (byParent.get(null) ?? []).map((d) => build(d, [], 0)[0])

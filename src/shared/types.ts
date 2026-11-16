@@ -30,7 +30,7 @@ export interface Deck {
 export interface DeckCounts {
   /** New cards available to study today (after daily limit). */
   new: number
-  /** Learning/relearning cards due now (or within learn-ahead). */
+  /** Learning/relearning cards due before the end of the study day. */
   learning: number
   /** Review cards due today (after daily limit). */
   review: number
