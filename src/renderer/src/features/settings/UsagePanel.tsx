@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Download, RotateCcw } from 'lucide-react'
-import { Button, Panel, toast } from '@renderer/components/ui'
-import { getUsage, onUsageChange, resetUsage } from '@renderer/lib/usage'
+import { Button, Panel, Switch, toast } from '@renderer/components/ui'
+import { getUsage, onUsageChange, resetUsage, setUsageEnabled, usageEnabled } from '@renderer/lib/usage'
 
 const TOP = 15
 
@@ -11,6 +11,7 @@ export function UsagePanel(): React.JSX.Element {
   const [all, setAll] = useState(false)
   useEffect(() => onUsageChange(() => setTick((n) => n + 1)), [])
 
+  const enabled = usageEnabled()
   const usage = getUsage()
   const rows = Object.entries(usage.counts).sort((a, b) => b[1] - a[1])
   const shown = all ? rows : rows.slice(0, TOP)
@@ -31,14 +32,21 @@ export function UsagePanel(): React.JSX.Element {
 
   return (
     <Panel className="flex flex-col gap-4">
-      <div>
-        <h3 className="text-base font-semibold">Usage</h3>
-        <p className="text-sm text-muted">
-          Counts of buttons and shortcuts used on this device since {new Date(usage.since).toLocaleDateString()}. Stored only on
-          this device and never sent anywhere. Card and deck text is not recorded.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold">Usage</h3>
+          <p className="text-sm text-muted">
+            Counts of buttons and shortcuts used on this device{enabled ? ` since ${new Date(usage.since).toLocaleDateString()}` : ''}.
+            Stored only on this device and never sent anywhere. Card and deck text is not recorded. Turning this off deletes the
+            counts.
+          </p>
+        </div>
+        <label className="flex shrink-0 cursor-pointer items-center gap-3 text-sm text-text">
+          Record usage
+          <Switch checked={enabled} onCheckedChange={(v) => setUsageEnabled(v)} aria-label="Record usage" />
+        </label>
       </div>
-      {rows.length === 0 ? (
+      {!enabled ? null : rows.length === 0 ? (
         <p className="text-sm text-muted">Nothing recorded yet.</p>
       ) : (
         <div className="flex flex-col gap-1.5">

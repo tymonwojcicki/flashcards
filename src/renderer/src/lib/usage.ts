@@ -38,7 +38,29 @@ function save(): void {
   }, 1000)
 }
 
+const ENABLED_KEY = 'flashcards.usage.enabled'
+
+export function usageEnabled(): boolean {
+  try {
+    return localStorage.getItem(ENABLED_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
+/** Turning recording off also clears what was stored. */
+export function setUsageEnabled(on: boolean): void {
+  try {
+    localStorage.setItem(ENABLED_KEY, String(on))
+  } catch {
+    /* storage unavailable */
+  }
+  if (!on) resetUsage()
+  else for (const l of listeners) l()
+}
+
 export function recordUsage(key: string): void {
+  if (!usageEnabled()) return
   const d = load()
   d.counts[key] = (d.counts[key] ?? 0) + 1
   save()
