@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e3e7ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1d22" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Spaced-repetition flashcards with FSRS, nested decks, math and images." />
+    <title>Flashcards</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <style>
+      html, body { margin: 0; background: radial-gradient(900px 600px at 105% 108%, rgba(245,140,30,.16), transparent 62%), #e3e7ee; background-attachment: fixed; }
+      @media (prefers-color-scheme: dark) { html, body { background: #1b1d22; } }
+      .fc-gate { min-height: 100vh; display: grid; place-items: center; font-family: "Mona Sans Variable","Inter","Segoe UI Variable","Segoe UI",system-ui,sans-serif; color: #2b3240; }
+      .fc-gate-card { width: min(420px, calc(100vw - 32px)); padding: 36px 32px; border-radius: 24px; background: #e3e7ee; text-align: center;
+        box-shadow: 9px 9px 18px #c3c8d1, -9px -9px 18px #ffffff; }
+      .fc-gate-logo { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; color: #b4440a;
+        box-shadow: inset 4px 4px 8px #c3c8d1, inset -4px -4px 8px #ffffff; }
+      .fc-gate h1 { margin: 8px 0; font-size: 22px; }
+      .fc-gate p { margin: 0 0 22px; color: #5a6272; line-height: 1.5; }
+      .fc-gate-primary { width: 100%; padding: 13px; border: 0; border-radius: 14px; background: linear-gradient(135deg,#f7a416,#f27a18 50%,#ea5a1c); color: #2a1000; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer;
+        box-shadow: 0 6px 20px rgba(240,100,20,.45), inset 1px 1px 0 rgba(255,255,255,.4); }
+      .fc-gate-primary:focus-visible, .fc-gate-link:focus-visible { outline: 2px solid #b4440a; outline-offset: 3px; }
+      .fc-gate-link { margin-top: 14px; border: 0; background: none; color: #5a6272; font-family: inherit; font-size: 14px; cursor: pointer; text-decoration: underline; }
+      @media (prefers-color-scheme: dark) {
+        .fc-gate { color: #e4e7ec; }
+        .fc-gate-card { background: #22252b; box-shadow: 9px 9px 18px #0c0d10, -9px -9px 18px #2b2f37; }
+        .fc-gate-logo { box-shadow: inset 4px 4px 8px #0c0d10, inset -4px -4px 8px #2b2f37; color: #fb923c; }
+        .fc-gate p, .fc-gate-link { color: #aab1bd; }
+        .fc-gate-primary { color: #2a0f00; }
+        .fc-gate-logo { color: #fb923c; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./boot.ts"></script>
+  </body>
+</html>

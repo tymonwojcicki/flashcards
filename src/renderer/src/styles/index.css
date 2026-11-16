@@ -1,0 +1,356 @@
+@import "tailwindcss";
+@import "@fontsource-variable/mona-sans";
+@import "@fontsource-variable/hubot-sans";
+@import "@fontsource/monaspace-neon/400.css";
+@import "@fontsource/monaspace-neon/500.css";
+@import "katex/dist/katex.min.css";
+@source "../";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------- Tokens ---------- */
+:root {
+  --bg: #e3e7ee;
+  --surface: #e8ecf2;
+  --surface-hi: #f0f3f8;
+  --surface-lo: #dde2ea;
+  --well: #dbe0e8;
+  --edge: rgb(255 255 255 / 0.9);
+  --shadow-light: #ffffff;
+  --shadow-dark: #b4bccb;
+  --text: #212736;
+  --text-muted: #556074;
+  --danger: #b42318;
+  --success: #166534;
+  --warning: #8a3b0c;
+  --again: #b42318;
+  --hard: #8a3b0c;
+  --good: #166534;
+  --easy: #1d4ed8;
+  --amb-1: rgb(255 255 255 / 0.75);
+  --amb-2: rgb(120 140 180 / 0.12);
+  --noise-opacity: 0.05;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #1b1d22;
+  --surface: #22252b;
+  --surface-hi: #2a2d34;
+  --surface-lo: #1e2126;
+  --well: #17191d;
+  --edge: rgb(255 255 255 / 0.075);
+  --shadow-light: #2b2f37;
+  --shadow-dark: #0c0d10;
+  --text: #eceff4;
+  --text-muted: #a1a8b5;
+  --danger: #ff8f85;
+  --success: #5fdc8c;
+  --warning: #f5b658;
+  --again: #ff8f85;
+  --hard: #f5b658;
+  --good: #5fdc8c;
+  --easy: #7fb6ff;
+  --amb-1: rgb(255 255 255 / 0.045);
+  --amb-2: rgb(0 0 0 / 0.25);
+  --noise-opacity: 0.045;
+  color-scheme: dark;
+}
+
+/* Accents: --accent = text-safe solid; --accent-1/2 = gradient ends; --accent-contrast = text on gradient */
+:root,
+:root[data-accent="ember"] {
+  --accent: #b4440a;
+  --accent-1: #f7a416;
+  --accent-2: #ea5a1c;
+  --accent-grad: linear-gradient(135deg, #f7a416 0%, #f27a18 50%, #ea5a1c 100%);
+  --accent-glow: rgb(240 100 20 / 0.3);
+  --accent-amb: rgb(245 140 30 / 0.16);
+  --accent-contrast: #2a1000;
+}
+:root[data-accent="aqua"] {
+  --accent: #0f766e;
+  --accent-1: #14b8a6;
+  --accent-2: #34d399;
+  --accent-grad: linear-gradient(135deg, #14b8a6 0%, #22c5a0 50%, #34d399 100%);
+  --accent-glow: rgb(20 170 150 / 0.3);
+  --accent-amb: rgb(30 190 170 / 0.15);
+  --accent-contrast: #03241d;
+}
+:root[data-accent="iris"] {
+  --accent: #4338ca;
+  --accent-1: #4f46e5;
+  --accent-2: #8b4cf0;
+  --accent-grad: linear-gradient(135deg, #4f46e5 0%, #6d44ec 55%, #8b4cf0 100%);
+  --accent-glow: rgb(99 70 240 / 0.3);
+  --accent-amb: rgb(110 90 240 / 0.15);
+  --accent-contrast: #ffffff;
+}
+[data-theme="dark"][data-accent="ember"],
+[data-theme="dark"]:not([data-accent]) {
+  --accent: #fb923c;
+  --accent-1: #fbbf24;
+  --accent-2: #ef4a2a;
+  --accent-grad: linear-gradient(135deg, #fbbf24 0%, #f97316 55%, #ef4a2a 100%);
+  --accent-glow: rgb(249 90 30 / 0.34);
+  --accent-amb: rgb(249 110 30 / 0.12);
+  --accent-contrast: #2a0f00;
+}
+[data-theme="dark"][data-accent="aqua"] {
+  --accent: #5eead4;
+  --accent-1: #14b8a6;
+  --accent-2: #4ade80;
+  --accent-grad: linear-gradient(135deg, #1fc7b6 0%, #2fd6a2 55%, #4ade80 100%);
+  --accent-glow: rgb(40 210 170 / 0.3);
+  --accent-amb: rgb(40 210 180 / 0.1);
+  --accent-contrast: #03231c;
+}
+[data-theme="dark"][data-accent="iris"] {
+  --accent: #a5b4fc;
+  --accent-1: #6366f1;
+  --accent-2: #a78bfa;
+  --accent-grad: linear-gradient(135deg, #6366f1 0%, #8b6cf6 55%, #a78bfa 100%);
+  --accent-glow: rgb(130 110 255 / 0.34);
+  --accent-amb: rgb(130 110 255 / 0.13);
+  --accent-contrast: #0e0c2a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-again: var(--again);
+  --color-hard: var(--hard);
+  --color-good: var(--good);
+  --color-easy: var(--easy);
+  --color-shadow-light: var(--shadow-light);
+  --color-shadow-dark: var(--shadow-dark);
+  --font-sans: "Mona Sans Variable", "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Hubot Sans Variable", "Mona Sans Variable", "Segoe UI Variable", system-ui, sans-serif;
+  --font-mono: "Monaspace Neon", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --radius-neu: 20px;
+  --radius-neu-sm: 16px;
+  --radius-neu-lg: 24px;
+}
+
+/* ---------- Neumorphic utilities ---------- */
+@utility neu-raised {
+  background: linear-gradient(145deg, var(--surface-hi), var(--surface-lo));
+  box-shadow: 10px 12px 26px var(--shadow-dark), -8px -8px 22px var(--shadow-light), inset 1px 1px 0 var(--edge);
+}
+@utility neu-raised-sm {
+  background: linear-gradient(145deg, var(--surface-hi), var(--surface-lo));
+  box-shadow: 5px 6px 12px var(--shadow-dark), -4px -4px 10px var(--shadow-light), inset 1px 1px 0 var(--edge);
+}
+@utility neu-inset {
+  background: var(--well);
+  box-shadow: inset 5px 5px 11px var(--shadow-dark), inset -4px -4px 9px var(--shadow-light);
+}
+@utility neu-pressed {
+  background: var(--well);
+  box-shadow: inset 4px 5px 10px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
+}
+@utility neu-flat {
+  background: var(--surface);
+  box-shadow: none;
+}
+/* Hero surface (study card): the richest treatment. */
+@utility neu-hero {
+  background: linear-gradient(150deg, var(--surface-hi) 0%, var(--surface) 45%, var(--surface-lo) 100%);
+  box-shadow: 18px 24px 52px var(--shadow-dark), -12px -12px 34px var(--shadow-light), inset 1px 1px 0 var(--edge),
+    inset 0 0 0 1px rgb(255 255 255 / 0.02);
+}
+@utility neu-accent {
+  background-image: var(--accent-grad);
+  box-shadow: 0 4px 14px var(--accent-glow), inset 1px 1px 0 rgb(255 255 255 / 0.4), inset 0 -2px 5px rgb(0 0 0 / 0.14);
+}
+@utility neu-accent-pressed {
+  box-shadow: inset 3px 4px 9px rgb(0 0 0 / 0.35), inset -2px -2px 6px rgb(255 255 255 / 0.18),
+    0 1px 5px var(--accent-glow);
+}
+@utility accent-fill {
+  background-image: var(--accent-grad);
+}
+@utility accent-glow {
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+/* Semantic glow on hover/press; set --glow on the element. */
+@utility neu-glow-hover {
+  &:hover {
+    box-shadow: 5px 6px 12px var(--shadow-dark), -4px -4px 10px var(--shadow-light), inset 1px 1px 0 var(--edge),
+      0 0 18px color-mix(in srgb, var(--glow) 38%, transparent);
+  }
+}
+@utility neu-glow-pressed {
+  box-shadow: inset 4px 5px 10px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light),
+    0 0 16px color-mix(in srgb, var(--glow) 40%, transparent);
+}
+
+/* ---------- Base ---------- */
+html {
+  font-size: calc(16px * var(--font-scale, 1));
+  background: var(--bg);
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+/* Ambient lighting: soft light top-left, accent-tinted glow bottom-right, fixed to the viewport. */
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(900px 650px at 8% -8%, var(--amb-1), transparent 65%),
+    radial-gradient(1000px 700px at 105% 108%, var(--accent-amb), transparent 62%),
+    radial-gradient(700px 500px at 100% 0%, var(--amb-2), transparent 70%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+/* Very faint film grain so large surfaces do not look like flat vector fills. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+::selection {
+  background: color-mix(in srgb, var(--accent-1) 35%, transparent);
+}
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Text fields sit in soft wells that draw their own focus ring. */
+input:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible,
+.ProseMirror:focus-visible {
+  outline: none;
+}
+.neu-inset:focus-within {
+  box-shadow: inset 5px 5px 11px var(--shadow-dark), inset -4px -4px 9px var(--shadow-light),
+    0 0 0 2px color-mix(in srgb, var(--accent-1) 50%, transparent), 0 0 16px var(--accent-glow);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent) transparent;
+}
+
+/* Card content */
+.rich-html img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+.rich-html p {
+  margin: 0 0 0.6em;
+}
+.rich-html p:last-child {
+  margin-bottom: 0;
+}
+.rich-html ul,
+.rich-html ol {
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.rich-html ul {
+  list-style: disc;
+}
+.rich-html ol {
+  list-style: decimal;
+}
+.rich-html code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.rich-html [data-math="block"] {
+  display: block;
+  text-align: center;
+  margin: 0.6em 0;
+  overflow-x: auto;
+}
+
+/* Animations */
+@keyframes neu-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes neu-pop-in {
+  from { opacity: 0; scale: 0.97; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes neu-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes neu-menu-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.anim-fade-in { animation: neu-fade-in 150ms ease-out; }
+.anim-pop-in { animation: neu-pop-in 150ms ease-out; }
+.anim-slide-up { animation: neu-slide-up 180ms ease-out; }
+.anim-menu-in { animation: neu-menu-in 120ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Typography: Hubot Sans for headings, Monaspace Neon for technical accents */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  font-stretch: 108%;
+  letter-spacing: -0.01em;
+}
+.font-mono,
+kbd,
+svg text {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dialog panels receive focus on open; they must not show a focus ring. */
+[role="dialog"]:focus,
+[role="dialog"]:focus-visible,
+[role="alertdialog"]:focus,
+[role="alertdialog"]:focus-visible {
+  outline: none;
+}

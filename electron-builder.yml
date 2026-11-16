@@ -1,0 +1,26 @@
+appId: com.flashcards.app
+productName: Flashcards
+directories:
+  output: "release/${version}"
+files:
+  - "out/**/*"
+  - "package.json"
+asarUnpack:
+  - "node_modules/sql.js/dist/*.wasm"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+portable:
+  artifactName: "${productName}-${version}-portable.exe"
+publish:
+  provider: github
+  releaseType: release

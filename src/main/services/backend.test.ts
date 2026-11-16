@@ -1,0 +1,234 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { Collection } from '../db/collection'
+import * as decks from './decks'
+import * as notes from './notes'
+import * as study from './study'
+import * as io from './importExport'
+import { CardState, Rating } from '../../shared/types'
+import { foreignLock, Lock, LOCK_FILE } from './lock'
+import { prune } from './backup'
+import type { MediaPort } from "./mediaCore"
+
+const WASM = path.resolve('node_modules/sql.js/dist/sql-wasm.wasm')
+let col: Collection
+
+beforeEach(async () => {
+  col = await Collection.memory(WASM)
+})
+
+const memPort = (): MediaPort => {
+  const m = new Map<string, Uint8Array>()
+  return { write: async (n, b) => void m.set(n, b), read: async (n) => m.get(n) ?? null }
+}
+
+const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'fc-test-'))
+
+describe('decks', () => {
+  it('builds nested trees and resolves deck paths', () => {
+    const [leaf, created] = decks.ensureDeckPath(col, 'Economics::Micro::Supply and Demand')
+    expect(created).toBe(3)
+    expect(decks.ensureDeckPath(col, 'economics::Micro::Supply and Demand')).toEqual([leaf, 0])
+    expect(decks.deckPath(col, leaf)).toEqual(['Economics', 'Micro', 'Supply and Demand'])
+    const tree = decks.getDeckTree(col)
+    expect(tree).toHaveLength(1)
+    expect(tree[0].children[0].children[0].id).toBe(leaf)
+  })
+
+  it('aggregates counts up the tree and respects new-card limits', () => {
+    const [leaf] = decks.ensureDeckPath(col, 'A::B')
+    for (let i = 0; i < 30; i++) notes.createNote(col, { deckId: leaf, front: `q${i}`, back: 'a', tags: [], reverse: false })
+    const [a] = decks.getDeckTree(col)
+    expect(a.counts.total).toBe(30)
+    expect(a.counts.new).toBe(20) // default newPerDay
+  })
+
+  it('prevents moving a deck into its own subtree', () => {
+    const [leaf] = decks.ensureDeckPath(col, 'A::B::C')
+    const root = decks.getDeckTree(col)[0].id
+    expect(() => decks.moveDeck(col, root, leaf)).toThrow()
+  })
+
+  it('deleting a deck cascades to subdecks and cards', () => {
+    const [leaf] = decks.ensureDeckPath(col, 'A::B')
+    notes.createNote(col, { deckId: leaf, front: 'q', back: 'a', tags: [], reverse: true })
+    decks.deleteDeck(col, decks.getDeckTree(col)[0].id)
+    expect(col.get<{ n: number }>('SELECT COUNT(*) n FROM cards')!.n).toBe(0)
+  })
+
+  it('child decks inherit preset from parent', () => {
+    const [leaf] = decks.ensureDeckPath(col, 'A::B')
+    const root = decks.getDeckTree(col)[0].id
+    const p = decks.createPreset(col, 'Exam', { ...decks.resolvePreset(col, leaf).config, newPerDay: 5 })
+    decks.setDeckPreset(col, root, p.id)
+    expect(decks.resolvePreset(col, leaf).config.newPerDay).toBe(5)
+  })
+})
+
+describe('notes & browse', () => {
+  it('creates reverse cards and finds them via search/tags', () => {
+    const [d] = decks.ensureDeckPath(col, 'Lang')
+    notes.createNote(col, { deckId: d, front: 'hund', back: 'dog', tags: ['animals', 'german'], reverse: true })
+    expect(notes.browse(col, { search: 'dog' }).total).toBe(2)
+    expect(notes.browse(col, { tag: 'animals' }).total).toBe(2)
+    expect(notes.browse(col, { tag: 'anim' }).total).toBe(0)
+    expect(notes.listTags(col)).toEqual(['animals', 'german'])
+  })
+})
+
+describe('study', () => {
+  it('runs a new card through learning steps into review, and undo restores it', async () => {
+    const [d] = decks.ensureDeckPath(col, 'S')
+    notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: false })
+    const s = await study.getSession(col, d, 'mixed')
+    expect(s.cards).toHaveLength(1)
+    const id = s.cards[0].card.id
+    const prev = await study.previewIntervals(col, id)
+    expect(prev[Rating.Again]).toBe('1m')
+    expect(prev[Rating.Good]).toBe('10m')
+
+    const t0 = Date.now()
+    const r1 = await study.answer(col, id, Rating.Good, 3000, t0)
+    expect(r1.card.state).toBe(CardState.Learning)
+    expect(r1.requeue).toBe(true)
+    const r2 = await study.answer(col, id, Rating.Good, 3000, t0 + 11 * 60_000)
+    expect(r2.card.state).toBe(CardState.Review)
+    expect(r2.requeue).toBe(false)
+
+    expect(study.undo(col)).toBe(id)
+    const back = notes.browse(col, {}).rows[0]
+    expect(back.state).toBe(CardState.Learning)
+    expect(col.get<{ n: number }>('SELECT COUNT(*) n FROM review_log')!.n).toBe(1)
+  })
+
+  it('buries sibling cards and limits one card per note in a session', async () => {
+    const [d] = decks.ensureDeckPath(col, 'S')
+    notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: true })
+    const s = await study.getSession(col, d, 'mixed')
+    expect(s.cards).toHaveLength(1)
+    await study.answer(col, s.cards[0].card.id, Rating.Easy, 1000)
+    const s2 = await study.getSession(col, d, 'mixed')
+    expect(s2.cards).toHaveLength(0) // sibling buried until tomorrow
+    const cram = await study.getSession(col, d, 'cram')
+    expect(cram.cards).toHaveLength(1)
+    expect(cram.affectsSchedule).toBe(false)
+  })
+
+  it('includes subdeck cards when studying a parent and reverses reverse cards', async () => {
+    const [leaf] = decks.ensureDeckPath(col, 'P::C')
+    notes.createNote(col, { deckId: leaf, front: 'F', back: 'B', tags: [], reverse: true })
+    const root = decks.getDeckTree(col)[0].id
+    const cram = await study.getSession(col, root, 'cram')
+    expect(cram.cards).toHaveLength(2)
+    const rev = cram.cards.find((c) => c.card.direction === 'rev')!
+    expect(rev.question).toBe('B')
+    expect(rev.answer).toBe('F')
+  })
+
+  it('changing desired retention changes intervals', async () => {
+    const [d] = decks.ensureDeckPath(col, 'R')
+    notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: false })
+    const id = (await study.getSession(col, d, 'mixed')).cards[0].card.id
+    const t0 = Date.now()
+    await study.answer(col, id, Rating.Good, 1000, t0)
+    await study.answer(col, id, Rating.Good, 1000, t0 + 11 * 60_000)
+    const lo = await study.previewIntervals(col, id)
+    decks.updatePreset(col, 'default', { config: { desiredRetention: 0.97 } })
+    const hi = await study.previewIntervals(col, id)
+    expect(lo[Rating.Good]).not.toBe(hi[Rating.Good])
+  })
+
+  it('computes stats', async () => {
+    const [d] = decks.ensureDeckPath(col, 'S')
+    notes.createNote(col, { deckId: d, front: 'q', back: 'a', tags: [], reverse: false })
+    const id = (await study.getSession(col, d, 'mixed')).cards[0].card.id
+    await study.answer(col, id, Rating.Good, 2000)
+    const st = study.getStats(col, null)
+    expect(st.days.at(-1)!.reviews).toBe(1)
+    expect(st.streak).toBe(1)
+    expect(st.forecast).toHaveLength(30)
+  })
+})
+
+describe('import / export', () => {
+  it('imports rows with deck paths, escapes plain text, and round-trips .fdeck', async () => {
+    const port = memPort()
+    const r = await io.importRows(
+      col,
+      [
+        { front: 'a < b', back: 'line1\nline2', deckPath: 'X::Y', tags: ['t'] },
+        { front: '$x^2$', back: '<b>bold</b>' },
+        { front: '', back: 'skipped' }
+      ],
+      null,
+      port
+    )
+    expect(r).toEqual({ notes: 2, cards: 2, decksCreated: 3, skipped: 1 })
+    const rows = notes.browse(col, { search: 'line1' }).rows
+    expect(rows[0].front).toBe('a &lt; b')
+    expect(rows[0].back).toBe('line1<br>line2')
+
+    const x = decks.getDeckTree(col).find((n) => n.name === 'X')!
+    const bytes = await io.exportFdeck(col, x.id, false, port)
+    const res = await io.importFdeck(col, bytes, null, false, port)
+    expect(res.notes).toBe(1)
+    expect(res.decksCreated).toBe(2)
+  })
+})
+
+describe('lock & backups', () => {
+  it('ignores own lock and stale locks', () => {
+    const dir = tmpDir()
+    const l = new Lock(dir)
+    l.acquire()
+    expect(foreignLock(dir)).toBeNull() // same device
+    fs.writeFileSync(
+      path.join(dir, LOCK_FILE),
+      JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() })
+    )
+    expect(foreignLock(dir)?.device).toBe('OTHER-PC')
+    expect(foreignLock(dir, Date.now() + 10 * 60_000)).toBeNull()
+    l.release()
+    expect(fs.existsSync(path.join(dir, LOCK_FILE))).toBe(true) // foreign lock left untouched
+  })
+
+  it('prunes backups to recent + daily', () => {
+    const dir = tmpDir()
+    for (let day = 1; day <= 20; day++)
+      for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, `collection-202601${String(day).padStart(2, '0')}-${h}0000.db`), '')
+    prune(dir)
+    expect(fs.readdirSync(dir).length).toBe(10 + 3) // 10 newest span days 17-20; daily adds 14-16
+  })
+
+  it('saves atomically and detects external changes', async () => {
+    const dir = tmpDir()
+    const c1 = await Collection.open(dir)
+    decks.createDeck(c1, 'Z', null)
+    c1.saveNow()
+    expect(c1.changedOnDisk()).toBe(false)
+    const c2 = await Collection.open(dir)
+    expect(decks.allDecks(c2).map((d) => d.name)).toEqual(['Z'])
+    decks.createDeck(c2, 'W', null)
+    await new Promise((r) => setTimeout(r, 20))
+    c2.saveNow()
+    expect(c1.changedOnDisk()).toBe(true)
+    await c1.reload()
+    expect(decks.allDecks(c1)).toHaveLength(2)
+    c1.close()
+    c2.close()
+  })
+})
+
+describe('media', () => {
+  it('stores data-URI images content-addressed during import', async () => {
+    const m = new Map<string, Uint8Array>()
+    const port: MediaPort = { write: async (n, b) => void m.set(n, b), read: async (n) => m.get(n) ?? null }
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    await io.importRows(col, [{ front: `<img src="data:image/png;base64,${png}">`, back: 'x' }], null, port)
+    const front = notes.browse(col, {}).rows[0].front
+    expect(front).toMatch(/^<img src="media:\/\/[a-f0-9]{32}\.png">$/)
+    expect(m.size).toBe(1)
+  })
+})
