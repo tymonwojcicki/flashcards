@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Pencil, RotateCcw } from 'lucide-react'
-import { Button, IconButton, Kbd } from '@renderer/components/ui'
+import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { Button, IconButton, Kbd, Tooltip } from '@renderer/components/ui'
 import { useApp } from '@renderer/store/app'
 import { SCOPE_LABELS, SHORTCUTS, effectiveKeysFor } from '@renderer/lib/shortcuts'
 import type { ShortcutId, ShortcutScope } from '@renderer/lib/shortcuts'
@@ -97,12 +97,12 @@ export function ShortcutsEditor(): React.JSX.Element {
                       <AlertTriangle size={13} /> Also used by {conflicts[id].join(', ')}
                     </span>
                   )}
+                  <Tooltip content={isRec ? 'Press the new key combination. Esc cancels.' : 'Click to change'} delay={150}>
                   <button
                     type="button"
                     onClick={() => setRecording(isRec ? null : id)}
                     aria-label={isRec ? 'Listening for keys. Press Esc to cancel.' : `Change shortcut for ${SHORTCUTS[id].label}`}
                     aria-pressed={isRec}
-                    title={isRec ? 'Press the new key combination. Esc cancels.' : 'Click to change'}
                     className={clsx(
                       'group/key relative flex h-9 items-center rounded-xl px-2 transition-all duration-150',
                       isRec
@@ -116,19 +116,13 @@ export function ShortcutsEditor(): React.JSX.Element {
                         <span className="inline-block h-3.5 w-px animate-pulse bg-accent" aria-hidden />
                       </span>
                     ) : (
-                      <>
-                        <Pencil
-                          size={12}
-                          aria-hidden
-                          className="pointer-events-none absolute top-1/2 right-full mr-1 -translate-y-1/2 text-muted opacity-0 transition-opacity duration-150 group-hover/key:opacity-70 group-focus-visible/key:opacity-70"
-                        />
-                        <Kbd hotkey={keys} force />
-                      </>
+                      <Kbd hotkey={keys} force />
                     )}
                     {changed && !isRec && (
-                      <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent" title="Changed from default" aria-hidden />
+                      <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
                     )}
                   </button>
+                  </Tooltip>
                   <span className="flex w-8 justify-center">
                     {changed && (
                       <IconButton

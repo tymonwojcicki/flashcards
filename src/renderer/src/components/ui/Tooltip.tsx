@@ -5,13 +5,15 @@ export interface TooltipProps {
   content: React.ReactNode
   hotkey?: string
   side?: 'top' | 'right' | 'bottom' | 'left'
+  /** Hover delay in ms before showing (default 400). */
+  delay?: number
   children: React.ReactElement
 }
 
 /** Wraps a single element (asChild) with a tooltip. */
-export function Tooltip({ content, hotkey, side = 'top', children }: TooltipProps): React.JSX.Element {
+export function Tooltip({ content, hotkey, side = 'top', delay = 400, children }: TooltipProps): React.JSX.Element {
   return (
-    <T.Provider delayDuration={400} skipDelayDuration={200}>
+    <T.Provider delayDuration={delay} skipDelayDuration={200}>
       <T.Root>
         <T.Trigger asChild>{children}</T.Trigger>
         <T.Portal>
