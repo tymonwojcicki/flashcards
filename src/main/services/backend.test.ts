@@ -85,6 +85,13 @@ describe('decks', () => {
       expect(await sessionSize(d)).toBe(2)
     })
 
+    it('bury on, daily limit reached: count and session agree', async () => {
+      const [d] = decks.ensureDeckPath(col, 'A')
+      for (let i = 0; i < 30; i++) reverseNote(d)
+      expect(decks.getDeckTree(col)[0].counts.new).toBe(20) // default newPerDay
+      expect(await sessionSize(d)).toBe(20)
+    })
+
     it('bury off: every card counts', async () => {
       const [d] = decks.ensureDeckPath(col, 'A')
       decks.setDeckPreset(col, d, noBury().id)
@@ -254,6 +261,22 @@ describe('lock & backups', () => {
       expect(lost).toEqual(['OTHER-PC']) // reported once, then stopped
       expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs) // never overwritten
       l.release()
+      expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not start a heartbeat when the lock is already taken over at acquire (clock skew)', () => {
+    vi.useFakeTimers()
+    try {
+      const dir = tmpDir()
+      const theirs = JSON.stringify({ device: 'OTHER-PC', pid: 1, heartbeat: Date.now(), since: Date.now() + 60_000 })
+      fs.writeFileSync(path.join(dir, LOCK_FILE), theirs)
+      const lost: string[] = []
+      new Lock(dir, (d) => lost.push(d)).acquire()
+      vi.advanceTimersByTime(5 * 60_000)
+      expect(lost).toEqual(['OTHER-PC']) // once, not every minute
       expect(fs.readFileSync(path.join(dir, LOCK_FILE), 'utf8')).toBe(theirs)
     } finally {
       vi.useRealTimers()

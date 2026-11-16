@@ -103,11 +103,16 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
     [...ids, start]
   )!
   const learning = mode === 'learn' ? [] : q('c.state IN (1,3) AND c.due < ?', [end], 'c.due')
-  const reviews = mode === 'learn' ? [] : q('c.state = 2 AND c.due < ?', [end], 'c.due', cfg.reviewsPerDay - (done.rd ?? 0))
+  const reviewLimit = Math.max(0, cfg.reviewsPerDay - (done.rd ?? 0))
+  const newLimit = Math.max(0, cfg.newPerDay - (done.nd ?? 0))
+  // With bury on, the limit is applied after removing siblings (below); otherwise a reverse pair
+  // would use two slots for the one card shown, halving the day's new cards.
+  const limit = (n: number) => (cfg.burySiblings ? undefined : n)
+  const reviews = mode === 'learn' ? [] : q('c.state = 2 AND c.due < ?', [end], 'c.due', limit(reviewLimit))
   let fresh =
     mode === 'review'
       ? []
-      : q('c.state = 0', [], cfg.newOrder === 'random' ? 'RANDOM()' : 'c.position, c.direction', cfg.newPerDay - (done.nd ?? 0))
+      : q('c.state = 0', [], cfg.newOrder === 'random' ? 'RANDOM()' : 'c.position, c.direction', limit(newLimit))
 
   let rv = reviews
   if (cfg.burySiblings) {
@@ -115,8 +120,8 @@ export async function getSession(col: Collection, deckId: Id, mode: StudyMode, n
     const seen = new Set(learning.map((r) => r.note_id))
     const dedupe = (rows: JoinedRow[]) =>
       rows.filter((r) => (seen.has(r.note_id) ? false : (seen.add(r.note_id), true)))
-    rv = dedupe(reviews)
-    fresh = dedupe(fresh)
+    rv = dedupe(reviews).slice(0, reviewLimit)
+    fresh = dedupe(fresh).slice(0, newLimit)
   }
   return {
     mode,

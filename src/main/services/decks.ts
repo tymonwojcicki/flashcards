@@ -274,14 +274,12 @@ export function getDeckTree(col: Collection, now = Date.now()): DeckNode[] {
       sum.reviewNotes += kc.reviewNotes
     }
     const cfg = presetFor(d.id)
-    // shortcut: getSession applies the daily limit before de-duplicating siblings, so when a limit
-    // bites and siblings fall inside it the session can show slightly fewer; fine for a count badge.
     const fresh = cfg.burySiblings ? sum.newNotes : sum.new
-    const due = cfg.burySiblings ? sum.reviewNotes : sum.review
+    const reviewDue = cfg.burySiblings ? sum.reviewNotes : sum.review
     const counts: DeckCounts = {
       new: Math.max(0, Math.min(fresh, cfg.newPerDay - sum.newDone)),
       learning: sum.learning,
-      review: Math.max(0, Math.min(due, cfg.reviewsPerDay - sum.reviewDone)),
+      review: Math.max(0, Math.min(reviewDue, cfg.reviewsPerDay - sum.reviewDone)),
       total: sum.total
     }
     return [{ ...d, path: [...path, d.name], depth, children: kids.map(([n]) => n), counts }, sum]
