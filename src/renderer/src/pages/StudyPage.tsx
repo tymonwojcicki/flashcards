@@ -146,12 +146,23 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   const history = useRef<HistoryEntry[]>([])
   const shownAt = useRef(Date.now())
   const busy = useRef(false)
+  // Learn-ahead limit (Settings > Scheduling): learning cards due within this window are shown
+  // right away when nothing else is ready.
+  const learnAheadMs = useRef(0)
+  useEffect(() => {
+    window.api.getCollectionSettings().then(
+      (s) => {
+        learnAheadMs.current = Math.max(0, s.learnAheadMinutes) * 60_000
+      },
+      () => {}
+    )
+  }, [])
 
   /** Replace the queue and choose which card to show next. */
   const commit = useCallback((q: QueueItem[]) => {
     queueRef.current = q
     setQueue(q)
-    const pick = pickNext(q, Date.now())
+    const pick = pickNext(q, Date.now(), learnAheadMs.current)
     setCurrentId(pick.kind === 'card' ? q[pick.index].sc.card.id : null)
     setRevealed(false)
     setIntervals(null)
@@ -207,9 +218,10 @@ export default function StudyPage({ deckId, mode }: { deckId: string; mode: Stud
   // ---- waiting for a learning step ----
   const waiting = phase === 'ready' && currentId === null && queue.length > 0
   const now = useNow(waiting)
-  const waitPick = waiting ? pickNext(queue, now) : null
+  const waitPick = waiting ? pickNext(queue, now, learnAheadMs.current) : null
   useEffect(() => {
-    if (waitPick && waitPick.kind === 'wait' && now >= waitPick.until) commit(queueRef.current)
+    if (!waitPick) return
+    if (waitPick.kind === 'card' || (waitPick.kind === 'wait' && now >= waitPick.until)) commit(queueRef.current)
   }, [waitPick, now, commit])
 
   // ---- actions ----

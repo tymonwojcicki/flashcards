@@ -17,13 +17,17 @@ export function makeQueue(cards: StudyCard[]): QueueItem[] {
   return cards.map((sc) => ({ sc, notBefore: 0 }))
 }
 
-/** First card that may be shown now; otherwise the soonest waiting card; otherwise empty. */
-export function pickNext(queue: QueueItem[], now: number): Pick {
+/**
+ * First card that may be shown now; otherwise the soonest waiting card. If that card is due within
+ * `learnAheadMs` (the "learn ahead limit"), it is shown right away instead of waiting.
+ */
+export function pickNext(queue: QueueItem[], now: number, learnAheadMs = 0): Pick {
   if (queue.length === 0) return { kind: 'empty' }
   const ready = queue.findIndex((q) => q.notBefore <= now)
   if (ready >= 0) return { kind: 'card', index: ready }
   let best = 0
   for (let i = 1; i < queue.length; i++) if (queue[i].notBefore < queue[best].notBefore) best = i
+  if (queue[best].notBefore - now <= learnAheadMs) return { kind: 'card', index: best }
   return { kind: 'wait', until: queue[best].notBefore, index: best }
 }
 

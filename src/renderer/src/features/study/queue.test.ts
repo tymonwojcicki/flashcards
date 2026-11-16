@@ -54,6 +54,12 @@ describe('queue', () => {
     expect(pickNext(w, 5000)).toEqual({ kind: 'card', index: 0 })
   })
 
+  it('learn-ahead shows a waiting card early only within the limit', () => {
+    const w = requeueByDue(makeQueue([sc('a')]), sc('a'), card('a', { state: CardState.Learning, due: 5000 }))
+    expect(pickNext(w, 1000, 3000)).toEqual({ kind: 'wait', until: 5000, index: 0 })
+    expect(pickNext(w, 1000, 4000)).toEqual({ kind: 'card', index: 0 })
+  })
+
   it('requeueByDue orders by due and skips ahead of not-yet-due cards', () => {
     let q = makeQueue([sc('a'), sc('b'), sc('c')])
     q = requeueByDue(q, sc('a'), card('a', { due: 9000, state: CardState.Learning }))

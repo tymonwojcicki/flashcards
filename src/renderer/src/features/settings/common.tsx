@@ -58,7 +58,7 @@ export function Segmented<T extends string>({
 /** Small (i) button that shows an explanation on hover or keyboard focus. */
 export function InfoTip({ label, children }: { label: string; children: ReactNode }): React.JSX.Element {
   return (
-    <Tooltip content={<span className="block max-w-72 text-xs leading-relaxed font-normal text-text">{children}</span>}>
+    <Tooltip content={<span className="block max-w-80 text-xs leading-relaxed font-normal text-text">{children}</span>}>
       <button
         type="button"
         aria-label={`About ${label}`}

@@ -309,7 +309,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           <div className="divide-y divide-muted/15">
             <SettingRow
               title="Desired retention"
-              info="How likely you are to remember a card when it comes up. Higher means more reviews. Default 90%."
+              info="The chance you still remember a card when it comes up. The app schedules each review for the moment your memory is expected to drop to this level. Higher means shorter gaps and more reviews per day (see the workload line); lower means fewer reviews but more forgetting. 90% suits most people."
               stacked
             >
               <div className="flex items-center gap-4">
@@ -332,14 +332,14 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Learning steps"
-              info="Waits for a new card on its first day. “1m 10m” = back after 1 minute, then 10 minutes. Good moves to the next step, Again starts over. Units: s, m, h, d."
+              info="The short practice a new card gets before it is scheduled in days. With “1m 10m”, pressing Good brings the card back after 1 minute, then after 10 minutes; after the last step it gets its first gap in days. Again restarts the steps and Easy skips them. Units: s, m, h, d."
             >
               <StepsField label="Learning steps" value={draft.learningSteps} onCommit={(s) => change({ learningSteps: s })} />
             </SettingRow>
 
             <SettingRow
               title="Relearning steps"
-              info="Waits for a card you forgot during a review. “10m” = back after 10 minutes. Leave empty to skip."
+              info="The same, for cards you already learned but forgot. When you press Again on a review, the card comes back after these waits (“10m” = 10 minutes), then returns to day-long gaps, shorter than before. Leave empty to skip the extra practice."
             >
               <StepsField
                 label="Relearning steps"
@@ -348,7 +348,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="New cards per day" info="Most new cards introduced per day.">
+            <SettingRow title="New cards per day" info="How many cards you see for the first time each day, for each deck using this preset. Every new card brings reviews in the following weeks, so this is the main control for your future workload. 10 to 20 is a common start.">
               <NumberField
                 aria-label="New cards per day"
                 value={draft.newPerDay}
@@ -358,7 +358,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="Maximum reviews per day" info="Most due reviews shown per day.">
+            <SettingRow title="Maximum reviews per day" info="The most review cards shown per day. Cards over the limit are not lost: they wait until the next day. Keep it above your usual daily number, or a backlog builds up.">
               <NumberField
                 aria-label="Maximum reviews per day"
                 value={draft.reviewsPerDay}
@@ -368,7 +368,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
               />
             </SettingRow>
 
-            <SettingRow title="Maximum interval" info="Longest time between two reviews of a card.">
+            <SettingRow title="Maximum interval" info="The longest gap, in days, the app may ever give a card. Even a card you know very well comes back at least this often. The default of 36500 means no practical limit; for example 365 makes every card come back at least once a year.">
               <NumberField
                 aria-label="Maximum interval in days"
                 value={draft.maximumInterval}
@@ -381,12 +381,12 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Fuzz"
-              info="Spreads out cards added together so they don't all come back on the same day. Keep on."
+              info="Adds a small random variation to gaps longer than a few days. Cards you added together then spread across nearby days instead of all coming back on the same day. Keep it on."
             >
               <Switch aria-label="Fuzz" checked={draft.enableFuzz} onCheckedChange={(v) => change({ enableFuzz: v })} />
             </SettingRow>
 
-            <SettingRow title="New card order" info="Order in which new cards are introduced.">
+            <SettingRow title="New card order" info="Sequential introduces new cards in the order they were added; an imported file keeps its row order. Random mixes them, which helps when neighbouring cards give each other away.">
               <Segmented
                 fill
                 label="New card order"
@@ -401,7 +401,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
 
             <SettingRow
               title="Bury siblings"
-              info="After one side of a two-way card is answered, hide the other side until tomorrow."
+              info="For cards made with “Also create reverse card”. After you answer one direction, the other direction waits until the next day, so you don't answer it right after seeing its answer."
             >
               <Switch
                 aria-label="Bury siblings"
@@ -416,7 +416,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
       <Panel className="flex flex-col gap-2">
         <h3 className="text-base font-semibold">Collection</h3>
         <div className="divide-y divide-muted/15">
-          <SettingRow title="Next day starts at" info="Hour a new study day begins, in local time. With 4:00, studying after midnight counts for the previous day.">
+          <SettingRow title="Next day starts at" info="When a new study day begins, in your computer's time. Daily limits reset and “due today” is counted from this hour. With 4:00, a session at 1 a.m. still counts toward the previous day.">
             <Select
               aria-label="Next day starts at"
               value={String(collection.dayStartHour)}
@@ -429,7 +429,7 @@ export function SchedulingTab({ deckId }: { deckId?: string }): React.JSX.Elemen
           </SettingRow>
           <SettingRow
             title="Learn ahead limit"
-            info="When nothing else is left, learning cards due within this many minutes are shown right away instead of waiting."
+            info="Cards in their learning steps normally wait for their timer. When nothing else is left in a session, cards due within this many minutes are shown right away instead. 0 means always wait."
           >
             <NumberField
               aria-label="Learn ahead limit in minutes"
