@@ -11,7 +11,7 @@ Vibe-coded in about a day with Claude Code. I directed it and tested it.
 
 ## Features
 
-- Nested decks (`Economics::Micro::Elasticity`)
+- Nested decks e.g. Economics -> Microeconomics -> Elasticity 
 - Cards with text, math (visual editor, Σ button) and pasted images
 - Study modes: Study, Review only, Learn new, Practice all, Weak spots
 - CSV / TSV import
