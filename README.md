@@ -2,7 +2,7 @@
 
 Spaced-repetition flashcards (FSRS) with nested decks, math and images.
 
-> Vibe-coded in about a day with Claude Code. I directed it and tested it.
+Vibe-coded in about a day with Claude Code. I directed it and tested it.
 
 ## Use it
 
