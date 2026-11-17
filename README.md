@@ -1,12 +1,13 @@
 # Flashcards
 
-> **Vibe code:** This project was vibe-coded in a day with Claude Code. I directed it and tested the result, but I did not write or review code by hand
-
 Spaced-repetition flashcards (FSRS) with nested decks, math and images.
 
-**Use it:** https://tymonwojcicki.github.io/flashcards/ — open in Chrome or Edge, click **Install** in the address bar.
+> Vibe-coded in about a day with Claude Code. I directed it and tested it.
 
-**Browser:** use Chrome or Edge on a computer. Firefox and Safari can't open folders, so syncing won't work there: your data stays inside that browser only.
+## Use it
+
+- **Web:** https://tymonwojcicki.github.io/flashcards/ (use Chrome or Edge, and click **Install** in the address bar if you want it as an app; on Firefox and Safari your cards stay in that browser only)
+- **Desktop (Windows):** download `Flashcards-Setup-x.y.z.exe` from [Releases](https://github.com/tymonwojcicki/flashcards/releases/latest). Windows will warn about an unknown publisher: click **More info → Run anyway**. The app updates itself after that.
 
 ## Features
 
@@ -16,11 +17,11 @@ Spaced-repetition flashcards (FSRS) with nested decks, math and images.
 - CSV / TSV import
 - Keyboard-first, with on-screen hotkey hints (toggle with `Ctrl+/`, list with `?`)
 
-## Sync
+## Sync across devices
 
-Settings → Data → **Change folder** → pick a folder in OneDrive, Dropbox or Google Drive. Do the same on your other PCs. Use one PC at a time.
+Settings → Data → **Change folder** → pick a folder in OneDrive, Google Drive or Dropbox. Do the same on your other devices. Use one device at a time.
 
-Your data stays in that folder. There are no accounts and no server.
+There are no accounts and no server, and the app works fully offline.
 
 ## Sharing
 
