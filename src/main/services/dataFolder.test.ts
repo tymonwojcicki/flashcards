@@ -70,6 +70,13 @@ class NodeTestStore extends NodeStore implements TestStore {
   constructor() {
     super(fs.mkdtempSync(path.join(os.tmpdir(), 'fc-folder-')))
   }
+  // Stamp files with the (fake) clock, like MemoryStore: two real writes in the same millisecond
+  // look unchanged to changedOnDisk, which made "reloads changes synced from another device" flaky.
+  override async write(p: string, bytes: Uint8Array | string) {
+    await super.write(p, bytes)
+    const t = new Date(Date.now())
+    fs.utimesSync(path.join(this.root, ...p.split('/')), t, t)
+  }
   names(dir: string) {
     const d = path.join(this.root, dir)
     return fs.existsSync(d) ? fs.readdirSync(d) : []
